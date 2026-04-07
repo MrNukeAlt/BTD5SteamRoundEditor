@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>BTD5 Advanced Round Editor - Enhanced Visuals</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; margin: 20px; background: #0b0b0b; color: #f0f0f0; }
+        .container { max-width: 1100px; margin: auto; background: #181818; padding: 25px; border-radius: 12px; border: 1px solid #333; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
+        h1 { color: #00d2ff; text-align: center; text-transform: uppercase; letter-spacing: 3px; margin-bottom: 20px; }
+        
+        textarea { width: 100%; height: 150px; font-family: 'Consolas', monospace; background: #000; color: #00ff41; border: 1px solid #444; padding: 12px; border-radius: 8px; margin-bottom: 15px; resize: vertical; }
+        
+        .round-card { background: #222; border-left: 6px solid #00d2ff; margin-bottom: 30px; border-radius: 6px; overflow: hidden; }
+        .round-header { background: #2d2d2d; padding: 15px; font-weight: bold; color: #00d2ff; display: flex; justify-content: space-between; border-bottom: 1px solid #333; }
+        
+        .group-container { padding: 20px; border-bottom: 1px solid #333; display: flex; gap: 25px; align-items: center; background: #1a1a1a; }
+        
+        .bloon-box { width: 110px; text-align: center; flex-shrink: 0; }
+        .bloon-preview { 
+            width: 95px; height: 95px; background: radial-gradient(circle, #333, #111); border: 2px solid #444; 
+            border-radius: 15px; display: flex; align-items: center; justify-content: center; 
+            position: relative; margin-bottom: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+        .bloon-preview img.bloon-sprite { max-width: 80%; max-height: 80%; z-index: 2; filter: drop-shadow(0 4px 4px rgba(0,0,0,0.8)); }
+        
+        /* CAMO EFFECT: Alpha 1 (Fully Opaque) */
+        .camo-overlay { 
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 85%; height: 85%; 
+            background-image: url('https://pub-1407f82391df4ab1951418d04be76914.r2.dev/uploads/ac4a8c4e-68c4-4608-8cd1-e77ad368a273.png');
+            background-position: center;
+            background-repeat: no-repeat;
+            background-size: contain; 
+            opacity: 0; 
+            z-index: 5; /* Higher z-index to stay above everything */
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+            /* Contrast boost to ensure visibility */
+            filter: brightness(1.1) drop-shadow(0px 0px 1px rgba(0,0,0,0.5));
+        }
+        
+        /* Active state: Alpha 1 (100% visible) */
+        .is-camo .camo-overlay { opacity: 1; } 
+
+        /* REGEN EFFECT: Stays color-matched */
+        .regen-icon { 
+            position: absolute; bottom: 4px; right: 4px; 
+            width: 26px; height: 26px;
+            z-index: 4; opacity: 0;
+            transition: all 0.3s ease;
+            -webkit-mask: url('https://pub-1407f82391df4ab1951418d04be76914.r2.dev/uploads/8d13b7e0-813b-4cec-bfce-8c072222d72b.png') no-repeat center;
+            mask: url('https://pub-1407f82391df4ab1951418d04be76914.r2.dev/uploads/8d13b7e0-813b-4cec-bfce-8c072222d72b.png') no-repeat center;
+            -webkit-mask-size: contain;
+            mask-size: contain;
+        }
+        .is-regen .regen-icon { opacity: 1; }
+
+        .group-data { flex-grow: 1; }
+        .data-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px; }
+        .data-grid div { display: flex; flex-direction: column; font-size: 0.7em; color: #888; text-transform: uppercase; }
+        
+        input, select { background: #050505; color: white; border: 1px solid #444; padding: 8px; border-radius: 5px; margin-top: 5px; }
+        .btn-load { background: #007bff; color: white; padding: 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; font-size: 1.1em; transition: 0.2s; }
+        .btn-load:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>BTD5 Advanced Round Editor</h1>
+        <textarea id="inputCode" placeholder='Paste .rounds JSON here...'></textarea>
+        <button class="btn-load" onclick="processCode()">LOAD ROUNDS & SYNC VISUALS</button>
+        <div id="editorUI" style="display:none; margin-top:30px;">
+            <div id="roundsList"></div>
+        </div>
+    </div>
+
+<script>
+const baseDir = "https://halfhydra.github.io/BTD5ChallengeEditor/Images/Bloon/";
+const assetMap = {
+    0: "Red.png", 1: "Blue.png", 2: "Green.png", 3: "Yellow.png", 4: "Pink.png",
+    5: "Black.png", 6: "White.png", 7: "Lead.png", 8: "Zebra.png", 9: "Rainbow.png",
+    10: "Ceramic.png", 11: "MOAB.png", 12: "BFB.png", 13: "ZOMG.png"
+};
+const colorMap = {
+    0: "#ff0000", 1: "#0000ff", 2: "#00ff00", 3: "#ffff00", 4: "#ff69b4",
+    5: "#333333", 6: "#ffffff", 7: "#777777", 8: "#cccccc", 9: "#ffffff",
+    10: "#8b4513", 11: "#00bfff", 12: "#ff0000", 13: "#006400"
+};
+const names = ["Red", "Blue", "Green", "Yellow", "Pink", "Black", "White", "Lead", "Zebra", "Rainbow", "Ceramic", "MOAB", "BFB", "ZOMG"];
+
+let roundsData = [];
+
+function processCode() {
+    const input = document.getElementById('inputCode').value.trim();
+    try {
+        const data = JSON.parse(input);
+        if (data.Rounds) {
+            roundsData = data.Rounds.map(r => ({
+                flavor: r.Hint || "",
+                groups: r.Waves.map(w => ({
+                    type: names.indexOf(w.Bloon) !== -1 ? names.indexOf(w.Bloon) : 0,
+                    camo: w.IsCamo ? "true" : "false",
+                    regen: w.IsRegen ? "true" : "false",
+                    spawners: [{ length: w.Duration, count: w.Count, start: w.StartTime }]
+                }))
+            }));
+            renderEditor();
+            document.getElementById('editorUI').style.display = 'block';
+        }
+    } catch (e) { alert("Error loading JSON."); }
+}
+
+function renderEditor() {
+    const list = document.getElementById('roundsList');
+    list.innerHTML = '';
+    roundsData.forEach((round, rIdx) => {
+        const card = document.createElement('div');
+        card.className = 'round-card';
+        let groupsHtml = round.groups.map((g, gIdx) => `
+            <div class="group-container">
+                <div class="bloon-box">
+                    <div class="bloon-preview ${g.camo === 'true' ? 'is-camo' : ''} ${g.regen === 'true' ? 'is-regen' : ''}" id="v-${rIdx}-${gIdx}">
+                        <div class="camo-overlay"></div>
+                        <div class="regen-icon" style="background-color: ${colorMap[g.type]}"></div>
+                        <img src="${baseDir + (assetMap[g.type] || "Red.png")}" class="bloon-sprite">
+                    </div>
+                    <div style="font-size:0.8em; color:#00d2ff; font-weight:bold;">${names[g.type]}</div>
+                </div>
+                <div class="group-data">
+                    <div class="data-grid">
+                        <div>Type <select onchange="updateVis(${rIdx}, ${gIdx}, 'type', this.value)">
+                            ${names.map((n, i) => `<option value="${i}" ${g.type == i ? 'selected' : ''}>${n}</option>`).join('')}
+                        </select></div>
+                        <div>Camo <select onchange="updateVis(${rIdx}, ${gIdx}, 'camo', this.value)">
+                            <option value="false" ${g.camo === 'false' ? 'selected' : ''}>No</option>
+                            <option value="true" ${g.camo === 'true' ? 'selected' : ''}>Yes</option>
+                        </select></div>
+                        <div>Regen <select onchange="updateVis(${rIdx}, ${gIdx}, 'regen', this.value)">
+                            <option value="false" ${g.regen === 'false' ? 'selected' : ''}>No</option>
+                            <option value="true" ${g.regen === 'true' ? 'selected' : ''}>Yes</option>
+                        </select></div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        card.innerHTML = `<div class=\"round-header\"><span>ROUND ${rIdx}</span><span>${round.flavor}</span></div>${groupsHtml}`;
+        list.appendChild(card);
+    });
+}
+
+function updateVis(rIdx, gIdx, field, val) {
+    roundsData[rIdx].groups[gIdx][field] = val;
+    const view = document.getElementById(`v-${rIdx}-${gIdx}`);
+    if (field === 'type') {
+        view.querySelector('.bloon-sprite').src = baseDir + (assetMap[val] || "Red.png");
+        view.nextElementSibling.innerText = names[val];
+        view.querySelector('.regen-icon').style.backgroundColor = colorMap[val];
+    }
+    if (field === 'camo') val === 'true' ? view.classList.add('is-camo') : view.classList.remove('is-camo');
+    if (field === 'regen') val === 'true' ? view.classList.add('is-regen') : view.classList.remove('is-regen');
+}
+</script>
+</body>
+</html>
