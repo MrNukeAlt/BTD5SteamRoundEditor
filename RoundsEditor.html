@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>BTD5 Advanced Round Editor - Full Management</title>
+    <title>BTD5 Advanced Round Editor - Time & Duration</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; margin: 20px; background: #0b0b0b; color: #f0f0f0; }
-        .container { max-width: 1100px; margin: auto; background: #181818; padding: 25px; border-radius: 12px; border: 1px solid #333; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
+        .container { max-width: 1300px; margin: auto; background: #181818; padding: 25px; border-radius: 12px; border: 1px solid #333; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
         h1 { color: #00d2ff; text-align: center; text-transform: uppercase; letter-spacing: 3px; margin-bottom: 20px; }
         
         textarea { width: 100%; height: 150px; font-family: 'Consolas', monospace; background: #000; color: #00ff41; border: 1px solid #444; padding: 12px; border-radius: 8px; margin-bottom: 15px; resize: vertical; }
@@ -14,19 +14,19 @@
         
         .round-card { background: #222; border-left: 6px solid #00d2ff; margin-bottom: 30px; border-radius: 6px; overflow: hidden; position: relative; }
         .round-header { background: #2d2d2d; padding: 15px; font-weight: bold; color: #00d2ff; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
-        
-        .group-container { padding: 20px; border-bottom: 1px solid #333; display: flex; gap: 25px; align-items: center; background: #1a1a1a; position: relative; }
+        .round-header input { background: #111; border: 1px solid #444; color: #fff; padding: 5px; width: 40%; }
+
+        .group-container { padding: 20px; border-bottom: 1px solid #333; display: flex; gap: 20px; align-items: center; background: #1a1a1a; position: relative; }
         .group-container:hover .btn-remove-group { opacity: 1; }
 
-        .bloon-box { width: 110px; text-align: center; flex-shrink: 0; }
+        .bloon-box { width: 100px; text-align: center; flex-shrink: 0; }
         .bloon-preview { 
-            width: 95px; height: 95px; background: radial-gradient(circle, #333, #111); border: 2px solid #444; 
+            width: 85px; height: 85px; background: radial-gradient(circle, #333, #111); border: 2px solid #444; 
             border-radius: 15px; display: flex; align-items: center; justify-content: center; 
             position: relative; margin-bottom: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
         }
         .bloon-preview img.bloon-sprite { max-width: 80%; max-height: 80%; z-index: 2; filter: drop-shadow(0 4px 4px rgba(0,0,0,0.8)); }
         
-        /* CAMO & REGEN VISUALS */
         .camo-overlay { 
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             width: 85%; height: 85%; 
@@ -37,26 +37,26 @@
         }
         .is-camo .camo-overlay { opacity: 1; } 
         .regen-icon { 
-            position: absolute; bottom: 4px; right: 4px; width: 26px; height: 26px;
+            position: absolute; bottom: 4px; right: 4px; width: 24px; height: 24px;
             z-index: 4; opacity: 0; transition: all 0.3s ease;
             background-size: contain; background-repeat: no-repeat; background-position: center;
         }
         .is-regen .regen-icon { opacity: 1; }
 
         .group-data { flex-grow: 1; }
-        .data-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        /* 6 Column Layout for: Type, Count, Start, Duration, Camo, Regen */
+        .data-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
         .data-grid div { display: flex; flex-direction: column; font-size: 0.7em; color: #888; text-transform: uppercase; }
         
-        input, select { background: #050505; color: white; border: 1px solid #444; padding: 8px; border-radius: 5px; margin-top: 5px; }
+        input, select { background: #050505; color: white; border: 1px solid #444; padding: 8px; border-radius: 5px; margin-top: 5px; width: 100%; box-sizing: border-box; }
         
-        /* BUTTONS */
         .btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; }
         .btn-load { background: #00d2ff; color: #000; flex: 2; }
         .btn-gen { background: #00ff41; color: #000; flex: 1; }
         .btn-add-round { background: #6200ea; color: white; margin-bottom: 20px; }
         .btn-add-group { background: #333; color: #00d2ff; border: 1px dashed #00d2ff; width: 100%; padding: 10px; }
         .btn-remove-round { background: #ff1744; color: white; font-size: 0.8em; }
-        .btn-remove-group { background: #ff1744; color: white; position: absolute; right: 10px; top: 10px; opacity: 0; padding: 5px 10px; }
+        .btn-remove-group { background: #ff1744; color: white; position: absolute; right: 10px; top: 10px; opacity: 0; padding: 5px 10px; z-index: 10; }
         .btn:hover { filter: brightness(1.2); }
     </style>
 </head>
@@ -94,7 +94,8 @@ function processCode() {
                 camo: w.IsCamo ? "true" : "false",
                 regen: w.IsRegen ? "true" : "false",
                 count: w.Count || 1,
-                start: w.StartTime || 0
+                start: w.StartTime || 0,
+                duration: w.Duration || 0
             }))
         }));
         renderEditor();
@@ -125,6 +126,8 @@ function renderEditor() {
                             ${names.map((n, i) => `<option value="${i}" ${g.type == i ? 'selected' : ''}>${n}</option>`).join('')}
                         </select></div>
                         <div>Count <input type="number" value="${g.count}" onchange="updateVal(${rIdx}, ${gIdx}, 'count', this.value)"></div>
+                        <div>Start <input type="number" step="0.1" value="${g.start}" onchange="updateVal(${rIdx}, ${gIdx}, 'start', this.value)"></div>
+                        <div>Duration <input type="number" step="0.1" value="${g.duration}" onchange="updateVal(${rIdx}, ${gIdx}, 'duration', this.value)"></div>
                         <div>Camo <select onchange="updateVal(${rIdx}, ${gIdx}, 'camo', this.value)">
                             <option value="false" ${g.camo === 'false' ? 'selected' : ''}>No</option>
                             <option value="true" ${g.camo === 'true' ? 'selected' : ''}>Yes</option>
@@ -153,7 +156,12 @@ function renderEditor() {
 }
 
 function updateVal(rIdx, gIdx, field, val) {
-    roundsData[rIdx].groups[gIdx][field] = val;
+    if (['count', 'start', 'duration'].includes(field)) {
+        roundsData[rIdx].groups[gIdx][field] = parseFloat(val) || 0;
+    } else {
+        roundsData[rIdx].groups[gIdx][field] = val;
+    }
+
     const view = document.getElementById(`v-${rIdx}-${gIdx}`);
     if (field === 'type') {
         view.querySelector('.bloon-sprite').src = baseDir + (assetMap[val] || "Red.png");
@@ -180,9 +188,8 @@ function updateRegenIcon(rIdx, gIdx, type) {
     }
 }
 
-/* MANAGEMENT FUNCTIONS */
 function addRound() {
-    roundsData.push({ flavor: "", groups: [{ type: 0, camo: "false", regen: "false", count: 10, start: 0 }] });
+    roundsData.push({ flavor: "", groups: [{ type: 0, camo: "false", regen: "false", count: 10, start: 0, duration: 0 }] });
     renderEditor();
 }
 
@@ -191,7 +198,7 @@ function removeRound(idx) {
 }
 
 function addGroup(rIdx) {
-    roundsData[rIdx].groups.push({ type: 0, camo: "false", regen: "false", count: 10, start: 0 });
+    roundsData[rIdx].groups.push({ type: 0, camo: "false", regen: "false", count: 10, start: 0, duration: 0 });
     renderEditor();
 }
 
@@ -209,8 +216,8 @@ function generateJSON() {
                 Count: parseInt(g.count),
                 IsCamo: g.camo === "true",
                 IsRegen: g.regen === "true",
-                StartTime: 0,
-                Duration: 0
+                StartTime: parseFloat(g.start),
+                Duration: parseFloat(g.duration)
             }))
         }))
     };
