@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bloon Definition Editor</title>
+    <style>
+        :root {
+            --primary: #2ecc71;
+            --bg: #1a1a1a;
+            --card: #2d2d2d;
+            --text: #e0e0e0;
+            --accent: #3498db;
+            --danger: #e74c3c;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            max-width: 1400px;
+            width: 100%;
+        }
+
+        .panel {
+            background: var(--card);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        .file-upload-section {
+            width: 100%;
+            max-width: 1400px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #252525;
+            border: 2px dashed #444;
+            border-radius: 8px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+
+        h2 { margin-top: 0; color: var(--primary); border-bottom: 1px solid #444; padding-bottom: 10px; }
+
+        .form-group {
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .row { display: flex; gap: 10px; margin-bottom: 5px; }
+        .row > * { flex: 1; }
+
+        label { margin-bottom: 5px; font-weight: bold; font-size: 0.9em; color: #aaa; }
+
+        input, select, textarea {
+            background: #3d3d3d;
+            border: 1px solid #555;
+            color: white;
+            padding: 8px;
+            border-radius: 4px;
+        }
+
+        .checkbox-group {
+            flex-direction: row;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .json-output {
+            background: #000;
+            color: #00ff00;
+            font-family: 'Courier New', Courier, monospace;
+            white-space: pre-wrap;
+            padding: 15px;
+            border-radius: 4px;
+            height: 700px;
+            overflow-y: auto;
+            font-size: 0.85em;
+        }
+
+        .btn {
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+
+        .btn-copy { background: var(--primary); color: black; width: 100%; margin-top: 10px; margin-bottom: 5px; }
+        .btn-download { background: var(--accent); color: white; width: 100%; }
+        .btn-add { background: var(--accent); color: white; margin-top: 5px; }
+        .btn-remove { background: var(--danger); color: white; flex: 0; }
+        
+        #file-input { display: none; }
+    </style>
+</head>
+<body>
+
+    <h1>🎈 Bloon Def Editor</h1>
+
+    <div class="file-upload-section">
+        <label for="file-input" class="btn" style="background: var(--accent); color: white;">📁 Open .bloon File</label>
+        <input type="file" id="file-input" accept=".bloon,.json">
+        <p id="file-name-display" style="margin-top: 10px; color: #888; font-size: 0.9em;">Using default ZOMG template</p>
+    </div>
+
+    <div class="container">
+        <div class="panel">
+            <h2>Configuration</h2>
+            
+            <div class="row">
+                <div class="form-group">
+                    <label>Bloon Type</label>
+                    <input type="text" id="Type" oninput="updateJSON()">
+                </div>
+                <div class="form-group">
+                    <label>Draw Layer</label>
+                    <select id="DrawLayer" onchange="updateJSON()">
+                        <option value="Air">Air</option>
+                        <option value="Ground">Ground</option>
+                        <option value="Water">Water</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="form-group">
+                    <label>Health</label>
+                    <input type="number" id="InitialHealth" oninput="updateJSON()">
+                </div>
+                <div class="form-group">
+                    <label>Base Speed</label>
+                    <input type="number" id="BaseSpeed" oninput="updateJSON()">
+                </div>
+                <div class="form-group">
+                    <label>Multiplier</label>
+                    <input type="number" step="0.01" id="SpeedMultiplier" oninput="updateJSON()">
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="CanGoUnderground" onchange="updateJSON()">
+                    <label for="CanGoUnderground">Can Go Underground</label>
+                </div>
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="RotateToPathDirection" onchange="updateJSON()">
+                    <label for="RotateToPathDirection">Rotate To Path</label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Sprite Files At Damage Levels</label>
+                <div id="sprite-list"></div>
+                <button class="btn btn-add" onclick="addSpriteRow()">+ Add Damage Level</button>
+            </div>
+
+            <div class="form-group">
+                <label>Child Bloons (Comma Separated)</label>
+                <input type="text" id="ChildBloons" oninput="updateJSON()">
+            </div>
+
+            <div class="form-group">
+                <label>Status Immunities</label>
+                <textarea id="StatusImmunity" rows="2" oninput="updateJSON()"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Damage Immunities</label>
+                <input type="text" id="DamageImmunity" oninput="updateJSON()">
+            </div>
+
+            <div class="row">
+                <div class="form-group">
+                    <label>Radius</label>
+                    <input type="number" id="Radius" oninput="updateJSON()">
+                </div>
+                <div class="form-group">
+                    <label>Hit Addon</label>
+                    <input type="number" id="HitAddon" oninput="updateJSON()">
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>JSON Output</h2>
+            <div id="json-display" class="json-output"></div>
+            <button class="btn btn-copy" onclick="copyToClipboard()">📋 Copy JSON</button>
+            <button class="btn btn-download" onclick="downloadFile()">💾 Download .bloon</button>
+        </div>
+    </div>
+
+    <script>
+        let currentData = {
+            "Type": "ZOMG",
+            "DrawLayer": "Air",
+            "InitialHealth": 4000,
+            "SpriteFilesAtDamageLevels": [
+                ["Zomg01.json", 3200],
+                ["Zomg02.json", 2400],
+                ["Zomg03.json", 1600],
+                ["Zomg04.json", 800]
+            ],
+            "BaseSpeed": 70,
+            "SpeedMultiplier": 0.18,
+            "RBE": 16656,
+            "ChildBloons": ["BFB.bloon", "BFB.bloon", "BFB.bloon", "BFB.bloon"],
+            "StatusImmunity": ["Slow", "Ice", "Glue", "Napalm", "Regen", "Camo", "MoveToPath", "Stun", "Permafrost", "IceShards", "ViralFrost", "AbsoluteZero", "VacStatus"],
+            "DamageImmunity": ["Juggernaut", "Foam"],
+            "CanGoUnderground": false,
+            "RotateToPathDirection": true,
+            "Radius": 45,
+            "HitAddon": 65
+        };
+
+        // Initialize Sprite Rows
+        function addSpriteRow(file = "", health = 0) {
+            const container = document.getElementById('sprite-list');
+            const div = document.createElement('div');
+            div.className = 'row';
+            div.innerHTML = `
+                <input type="text" placeholder="Sprite file" value="${file}" oninput="updateJSON()">
+                <input type="number" placeholder="Health Trigger" value="${health}" oninput="updateJSON()">
+                <button class="btn btn-remove" onclick="this.parentElement.remove(); updateJSON();">×</button>
+            `;
+            container.appendChild(div);
+            updateJSON();
+        }
+
+        // File Loading
+        document.getElementById('file-input').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            document.getElementById('file-name-display').textContent = `Editing: ${file.name}`;
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    currentData = JSON.parse(event.target.result);
+                    populateForm(currentData);
+                } catch (err) { alert("Error parsing file."); }
+            };
+            reader.readAsText(file);
+        });
+
+        function populateForm(data) {
+            document.getElementById('Type').value = data.Type || "";
+            document.getElementById('DrawLayer').value = data.DrawLayer || "Air";
+            document.getElementById('InitialHealth').value = data.InitialHealth || 0;
+            document.getElementById('BaseSpeed').value = data.BaseSpeed || 0;
+            document.getElementById('SpeedMultiplier').value = data.SpeedMultiplier || 0;
+            document.getElementById('CanGoUnderground').checked = !!data.CanGoUnderground;
+            document.getElementById('RotateToPathDirection').checked = !!data.RotateToPathDirection;
+            document.getElementById('Radius').value = data.Radius || 0;
+            document.getElementById('HitAddon').value = data.HitAddon || 0;
+            document.getElementById('ChildBloons').value = (data.ChildBloons || []).join(', ');
+            document.getElementById('StatusImmunity').value = (data.StatusImmunity || []).join(', ');
+            document.getElementById('DamageImmunity').value = (data.DamageImmunity || []).join(', ');
+
+            // Clear and rebuild sprite list
+            const list = document.getElementById('sprite-list');
+            list.innerHTML = "";
+            if (data.SpriteFilesAtDamageLevels) {
+                data.SpriteFilesAtDamageLevels.forEach(pair => addSpriteRow(pair[0], pair[1]));
+            }
+            updateJSON();
+        }
+
+        function updateJSON() {
+            currentData.Type = document.getElementById('Type').value;
+            currentData.DrawLayer = document.getElementById('DrawLayer').value;
+            currentData.InitialHealth = parseInt(document.getElementById('InitialHealth').value) || 0;
+            currentData.BaseSpeed = parseInt(document.getElementById('BaseSpeed').value) || 0;
+            currentData.SpeedMultiplier = parseFloat(document.getElementById('SpeedMultiplier').value) || 0;
+            currentData.CanGoUnderground = document.getElementById('CanGoUnderground').checked;
+            currentData.RotateToPathDirection = document.getElementById('RotateToPathDirection').checked;
+            currentData.Radius = parseInt(document.getElementById('Radius').value) || 0;
+            currentData.HitAddon = parseInt(document.getElementById('HitAddon').value) || 0;
+
+            // Arrays
+            currentData.ChildBloons = document.getElementById('ChildBloons').value.split(',').map(s => s.trim()).filter(s => s !== "");
+            currentData.StatusImmunity = document.getElementById('StatusImmunity').value.split(',').map(s => s.trim()).filter(s => s !== "");
+            currentData.DamageImmunity = document.getElementById('DamageImmunity').value.split(',').map(s => s.trim()).filter(s => s !== "");
+
+            // Sprites
+            const spriteRows = document.querySelectorAll('#sprite-list .row');
+            currentData.SpriteFilesAtDamageLevels = Array.from(spriteRows).map(row => {
+                const inputs = row.querySelectorAll('input');
+                return [inputs[0].value, parseInt(inputs[1].value) || 0];
+            });
+
+            document.getElementById('json-display').textContent = JSON.stringify(currentData, null, 4);
+        }
+
+        function downloadFile() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(currentData, null, 4));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", (currentData.Type || "bloon") + ".bloon");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        function copyToClipboard() {
+            navigator.clipboard.writeText(document.getElementById('json-display').textContent).then(() => alert("Copied!"));
+        }
+
+        // Setup defaults
+        populateForm(currentData);
+    </script>
+</body>
+</html>
