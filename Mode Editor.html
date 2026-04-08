@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic .mode Editor</title>
+    <style>
+        :root { --primary: #2563eb; --bg: #f1f5f9; --card: #ffffff; --text: #0f172a; --accent: #ef4444; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; flex-direction: column; height: 100vh; }
+        
+        header { background: #1e293b; color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .logo { font-size: 1.2rem; font-weight: bold; letter-spacing: 1px; }
+        
+        main { display: grid; grid-template-columns: 1fr 400px; gap: 1rem; padding: 1rem; flex-grow: 1; overflow: hidden; }
+        
+        #editor-form { background: var(--card); padding: 1.5rem; border-radius: 8px; overflow-y: auto; border: 1px solid #e2e8f0; }
+        .group { border: 1px solid #e2e8f0; margin: 1.2rem 0; padding: 1rem; border-radius: 8px; position: relative; }
+        .group-title { position: absolute; top: -12px; left: 10px; background: white; padding: 0 8px; font-weight: bold; font-size: 0.75rem; color: var(--primary); text-transform: uppercase; }
+        
+        .field-row { display: flex; align-items: center; margin-bottom: 0.5rem; gap: 10px; padding: 4px; border-radius: 4px; }
+        .field-row:hover { background: #f8fafc; }
+        .field-row label { flex: 1; font-weight: 500; font-size: 0.85rem; color: #475569; overflow: hidden; text-overflow: ellipsis; }
+        
+        input[type="number"], input[type="text"] { padding: 0.4rem; border: 1px solid #cbd5e1; border-radius: 4px; width: 160px; font-size: 0.9rem; }
+        input[type="checkbox"] { width: 1.1rem; height: 1.1rem; cursor: pointer; }
+        
+        .array-item { background: #f8fafc; padding: 8px; border-radius: 4px; margin-bottom: 5px; border: 1px solid #e2e8f0; display: flex; gap: 8px; align-items: center; }
+        
+        .btn { padding: 0.5rem 1rem; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; font-size: 0.8rem; }
+        .btn-add { background: #10b981; color: white; margin-top: 5px; }
+        .btn-del { background: #fee2e2; color: var(--accent); padding: 2px 8px; font-size: 1.2rem; border-radius: 4px; }
+        .btn-del:hover { background: var(--accent); color: white; }
+        .btn-save { background: var(--primary); color: white; }
+        .btn-load { background: #64748b; color: white; }
+
+        #json-preview { background: #0f172a; color: #38bdf8; padding: 1rem; border-radius: 8px; font-family: 'Consolas', monospace; font-size: 0.8rem; white-space: pre-wrap; overflow-y: auto; border: 1px solid #334155; }
+        
+        .hidden { display: none; }
+        .toolbar { margin-bottom: 1rem; display: flex; gap: 10px; border-bottom: 1px solid #eee; padding-bottom: 1rem; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">.MODE EDITOR</div>
+    <div style="display: flex; gap: 10px;">
+        <input type="file" id="fileInput" class="hidden" accept=".mode,.json">
+        <button class="btn btn-load" onclick="document.getElementById('fileInput').click()">LOAD .MODE FILE</button>
+        <button class="btn btn-save" onclick="downloadFile()">EXPORT .MODE</button>
+    </div>
+</header>
+
+<main>
+    <div id="editor-form">
+        <div class="toolbar">
+            <button class="btn btn-add" onclick="addNewRootKey()">+ Add Custom Metadata (nk_ etc)</button>
+        </div>
+        <div id="fields-container"></div>
+    </div>
+    <div id="json-preview"></div>
+</main>
+
+<script>
+    // CLEAN TEMPLATE: nk_ fields removed from default
+    let gameData = {
+        "Setup": {
+            "Health": 150,
+            "Money": 650.0,
+            "StartRound": 0,
+            "RoundFiles": ["Default/Default.rounds"],
+            "Inventory": []
+        },
+        "Rules": {
+            "CanEarnMoney": true,
+            "CanSave": true,
+            "PauseBetweenRounds": true,
+            "TargetRound": 75,
+            "RoundStep": 1.0,
+            "Reward": {
+                "XP": 0,
+                "XPMultiplier": 1.0,
+                "MonkeyMoney": 100
+            },
+            "CashRoundModifiers": [
+                { "Round": 0, "Mod": 1.0 },
+                { "Round": 51, "Mod": 0.5 }
+            ]
+        }
+    };
+
+    const container = document.getElementById('fields-container');
+    const preview = document.getElementById('json-preview');
+
+    function renderEditor(data, parentElement, path = "") {
+        if (path === "") parentElement.innerHTML = "";
+        
+        for (let key in data) {
+            const currentPath = path ? `${path}.${key}` : key;
+            const value = data[key];
+
+            // 1. ARRAY RENDERING
+            if (Array.isArray(value)) {
+                const group = document.createElement('div');
+                group.className = "group";
+                group.innerHTML = `<div class="group-title">${key}</div>`;
+                
+                value.forEach((item, index) => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = "array-item";
+                    
+                    if (typeof item === 'object') {
+                        const subContent = document.createElement('div');
+                        subContent.style.flex = "1";
+                        renderEditor(item, subContent, `${currentPath}.${index}`);
+                        itemDiv.appendChild(subContent);
+                    } else {
+                        itemDiv.innerHTML = `<input type="text" style="flex:1" value="${item}" onchange="updateValue('${currentPath}.${index}', this.value)">`;
+                    }
+
+                    const delBtn = document.createElement('button');
+                    delBtn.className = "btn btn-del";
+                    delBtn.innerHTML = "&times;";
+                    delBtn.onclick = () => deleteItem(currentPath, index);
+                    itemDiv.appendChild(delBtn);
+                    group.appendChild(itemDiv);
+                });
+
+                const addBtn = document.createElement('button');
+                addBtn.className = "btn btn-add";
+                addBtn.innerText = `+ Add to ${key}`;
+                addBtn.onclick = () => addItem(currentPath, value);
+                group.appendChild(addBtn);
+                parentElement.appendChild(group);
+
+            // 2. OBJECT RENDERING
+            } else if (typeof value === 'object' && value !== null) {
+                const group = document.createElement('div');
+                group.className = "group";
+                group.innerHTML = `<div class="group-title">${key}</div>`;
+                renderEditor(value, group, currentPath);
+                parentElement.appendChild(group);
+
+            // 3. SIMPLE KEY/VALUE RENDERING (This catches nk_ variables when they exist)
+            } else {
+                const row = document.createElement('div');
+                row.className = "field-row";
+                row.innerHTML = `<label>${key}</label>`;
+                
+                let input = document.createElement('input');
+                if (typeof value === 'boolean') {
+                    input.type = 'checkbox';
+                    input.checked = value;
+                    input.onchange = (e) => updateValue(currentPath, e.target.checked);
+                } else {
+                    input.type = typeof value === 'number' ? 'number' : 'text';
+                    if (input.type === 'number') input.step = "any";
+                    input.value = value;
+                    input.onchange = (e) => updateValue(currentPath, input.type === 'number' ? parseFloat(e.target.value) : e.target.value);
+                }
+                
+                const delBtn = document.createElement('button');
+                delBtn.className = "btn btn-del";
+                delBtn.style.fontSize = "0.8rem";
+                delBtn.innerHTML = "&times;";
+                delBtn.onclick = () => deleteKey(path, key);
+
+                row.appendChild(input);
+                row.appendChild(delBtn);
+                parentElement.appendChild(row);
+            }
+        }
+        updatePreview();
+    }
+
+    function updateValue(path, value) {
+        const keys = path.split('.');
+        let obj = gameData;
+        for (let i = 0; i < keys.length - 1; i++) obj = obj[keys[i]];
+        obj[keys[keys.length - 1]] = value;
+        updatePreview();
+    }
+
+    function addItem(path, array) {
+        if (path.includes("CashRoundModifiers")) {
+            array.push({ "Round": 0, "Mod": 1.0 });
+        } else {
+            array.push("new_entry");
+        }
+        renderEditor(gameData, container);
+    }
+
+    function deleteItem(path, index) {
+        const keys = path.split('.');
+        let obj = gameData;
+        for (let i = 0; i < keys.length - 1; i++) obj = obj[keys[i]];
+        obj[keys[keys.length - 1]].splice(index, 1);
+        renderEditor(gameData, container);
+    }
+
+    function deleteKey(parentPath, key) {
+        if (!parentPath) {
+            delete gameData[key];
+        } else {
+            const keys = parentPath.split('.');
+            let obj = gameData;
+            for (let i = 0; i < keys.length; i++) obj = obj[keys[i]];
+            delete obj[key];
+        }
+        renderEditor(gameData, container);
+    }
+
+    function addNewRootKey() {
+        const keyName = prompt("Enter new key name (e.g., nk_title):");
+        if (keyName) {
+            gameData[keyName] = "New Value";
+            renderEditor(gameData, container);
+        }
+    }
+
+    function updatePreview() {
+        preview.innerText = JSON.stringify(gameData, null, 4);
+    }
+
+    function downloadFile() {
+        const blob = new Blob([JSON.stringify(gameData, null, 4)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = (gameData.nk_title || "custom_mode") + ".mode";
+        a.click();
+    }
+
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                gameData = JSON.parse(e.target.result);
+                // When loading, the script now identifies all keys present (including nk_ fields)
+                renderEditor(gameData, container);
+            } catch (err) { alert("Invalid .mode file."); }
+        };
+        reader.readAsText(file);
+    });
+
+    // Initial render with clean template
+    renderEditor(gameData, container);
+</script>
+
+</body>
+</html>
