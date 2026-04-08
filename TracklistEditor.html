@@ -2,15 +2,19 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Tracklist Master - Universal Sync</title>
+    <title>Tracklist Master - Full Structure</title>
     <style>
-        :root { --primary: #3b82f6; --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --danger: #ef4444; --success: #10b981; --warning: #f59e0b; --coop: #a855f7; }
+        :root { --primary: #3b82f6; --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --danger: #ef4444; --success: #10b981; --warning: #f59e0b; --coop: #a855f7; --highlight: #fbbf24; }
         html, body { height: 100%; margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); display: flex; flex-direction: column; }
         
         header { background: #1e293b; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; flex-shrink: 0; }
         .logo { font-weight: 800; font-size: 1.1rem; color: var(--primary); }
 
-        main { display: grid; grid-template-columns: 1fr 450px; flex: 1; overflow: hidden; }
+        .file-upload-zone { background: #1e293b; padding: 10px 2rem; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid #334155; font-size: 0.8rem; }
+        .file-input-wrapper { position: relative; overflow: hidden; display: inline-block; }
+        .file-input-wrapper input[type=file] { font-size: 100px; position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; }
+
+        main { display: grid; grid-template-columns: 1fr 500px; flex: 1; overflow: hidden; }
         
         .editor-pane { overflow-y: auto; padding: 2rem; height: 100%; box-sizing: border-box; }
         .sticky-controls { position: sticky; top: -2rem; z-index: 10; background: var(--bg); padding-bottom: 1rem; margin-bottom: 1rem; border-bottom: 2px solid #1e293b; }
@@ -21,288 +25,170 @@
         .tab.coop-tab.active { background: var(--coop); }
 
         .track-card { background: var(--card); border-radius: 8px; padding: 1rem; margin-bottom: 1rem; border: 1px solid #334155; position: relative; display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }
+        .track-card.modified { border-color: var(--highlight); }
+        
         .field { display: flex; flex-direction: column; gap: 4px; }
         label { font-size: 0.6rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; }
         input { background: #0f172a; border: 1px solid #475569; color: white; padding: 6px; border-radius: 4px; font-size: 0.8rem; }
         
         .btn { padding: 8px 14px; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; font-size: 0.75rem; transition: 0.2s; }
         .btn:hover { filter: brightness(1.2); }
-        .btn-sync-std { background: #334155; color: white; border: 1px solid var(--primary); }
-        .btn-sync-coop { background: #334155; color: white; border: 1px solid var(--coop); }
-        .btn-del { background: var(--danger); color: white; height: 22px; width: 22px; position: absolute; top: -8px; right: -8px; border-radius: 4px; }
 
-        .preview-pane { background: #000; border-left: 1px solid #334155; display: flex; flex-direction: column; overflow: hidden; }
-        .preview-header { padding: 10px; font-size: 0.7rem; color: #64748b; background: #111; border-bottom: 1px solid #222; }
-        #json-output { margin: 0; padding: 1.5rem; font-family: 'Consolas', monospace; font-size: 0.8rem; color: #10b981; white-space: pre; overflow: auto; flex: 1; }
+        .preview-pane { background: #000; border-left: 1px solid #334155; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        .preview-toolbar { padding: 8px; background: #111; border-bottom: 1px solid #222; display: flex; justify-content: space-between; align-items: center; }
+        #json-output { margin: 0; padding: 1.5rem; font-family: 'Consolas', monospace; font-size: 0.8rem; color: #10b981; white-space: pre; overflow: auto; flex: 1; line-height: 1.4; }
+        
+        mark { background: var(--highlight); color: #000; border-radius: 2px; padding: 0 2px; }
     </style>
 </head>
 <body>
 
 <header>
-    <div class="logo">TRACKLIST MASTER</div>
+    <div class="logo">TRACKLIST MASTER v2.0</div>
     <div style="display: flex; gap: 8px;">
-        <button class="btn btn-sync-std" onclick="syncStandardToCoop()">SYNC STD ➔ CO-OP</button>
-        <button class="btn btn-sync-coop" onclick="syncCoopToStandard()">SYNC CO-OP ➔ STD</button>
-        <button class="btn" style="background: var(--primary); color:white;" onclick="downloadJSON('standard')">DOWNLOAD tracklist.json</button>
-        <button class="btn" style="background: var(--coop); color:white;" onclick="downloadJSON('coop')">DOWNLOAD coop_tracklist.json</button>
+        <button class="btn" style="background: #334155; color: white; border: 1px solid #475569;" onclick="syncStandardToCoop()">SYNC STD ➔ CO-OP</button>
+        <button class="btn" style="background: #334155; color: white; border: 1px solid #475569;" onclick="syncCoopToStandard()">SYNC CO-OP ➔ STD</button>
+        <button class="btn" style="background: var(--primary); color:white;" onclick="downloadJSON('standard')">SAVE tracklist.json</button>
+        <button class="btn" style="background: var(--coop); color:white;" onclick="downloadJSON('coop')">SAVE coop_tracklist.json</button>
     </div>
 </header>
+
+<div class="file-upload-zone">
+    <strong>📂 LOAD LOCAL JSON:</strong>
+    <div class="file-input-wrapper">
+        <button class="btn" style="background: #475569; color: white;">Choose File</button>
+        <input type="file" id="fileInput" accept=".json" onchange="handleFileSelect(event)">
+    </div>
+    <span id="fileNameDisplay" style="color: #94a3b8;">Select a file to populate current view</span>
+</div>
 
 <main>
     <div class="editor-pane">
         <div class="sticky-controls">
             <div class="tabs">
-                <div id="tab-std" class="tab" onclick="switchTab('standard')">STANDARD LIST</div>
-                <div id="tab-coop" class="tab coop-tab active" onclick="switchTab('coop')">CO-OP LIST</div>
+                <div id="tab-std" class="tab active" onclick="switchTab('standard')">STANDARD LIST</div>
+                <div id="tab-coop" class="tab coop-tab" onclick="switchTab('coop')">CO-OP LIST</div>
             </div>
-            <button class="btn" style="background: var(--success); color: white; width: 100%" onclick="addTrack()">+ ADD NEW LEVEL TO VIEW</button>
+            <button class="btn" style="background: var(--success); color: white; width: 100%" onclick="addTrack()">+ ADD NEW LEVEL TO TRACKS</button>
         </div>
         <div id="container"></div>
     </div>
     <div class="preview-pane">
-        <div class="preview-header" id="preview-title">PREVIEW: coop_tracklist.json</div>
+        <div class="preview-toolbar">
+            <span style="font-size: 0.7rem; color: #64748b; font-weight: bold;">LIVE JSON PREVIEW (FULL STRUCTURE)</span>
+            <button class="btn" style="background: #222; color: #888; border: 1px solid #444; padding: 4px 8px;" onclick="clearHighlights()">Clear Highlights</button>
+        </div>
         <pre id="json-output"></pre>
     </div>
 </main>
 
 <script>
-    let currentView = 'coop';
+    let currentView = 'standard';
+    
+    // Initializing with the full structure provided
+    const defaultTemplate = () => ({
+        "Size": [250, 180],
+        "DifficultyColours": [
+            [154, 212, 0], [65, 174, 248], [249, 241, 14], [248, 65, 65], [254, 175, 50]
+        ],
+        "DifficultyDescriptions": [
+            "LOC_DIF_DESC_Beginner", "LOC_DIF_DESC_Intermediate", "LOC_DIF_DESC_Advanced", "LOC_DIF_DESC_Expert", "LOC_DIF_DESC_Extreme"
+        ],
+        "Tracks": []
+    });
+
     let data = {
-        standard: {
-            "Tracks" : [		
-                [ 0, "monkey_lane", "LOC_MAP_monkey_lane", 0, 0, false, false ],
-                [ 0, "river_logging", "LOC_MAP_river_logging", 0, 0, false, false ],
-                [ 0, "mosaic", "LOC_MAP_mosaic", 0, 0, true, false ],
-                [ 0, "alpine_lake", "LOC_MAP_alpine_lake", 0, 0, true, false ],
-                [ 0, "bobsleigh_run", "LOC_MAP_bobsleigh_run", 0, 0, false, false ],
-                [ 0, "dancefloor", "LOC_MAP_dancefloor", 0, 0, false, false ],
-                [ 0, "nazca_lines", "LOC_MAP_nazca_lines", 0, 0, false, false ],
-                [ 0, "toyland", "LOC_MAP_toyland", 0, 0, false, false ],
-                [ 0, "daffodils", "LOC_MAP_daffodils", 0, 0, true, false ],
-                [ 0, "carpark", "LOC_MAP_carpark", 0, 0, false, false ],
-                [ 0, "snowman", "LOC_MAP_snowman", 0, 0, true, false ],
-                [ 0, "oasis", "LOC_MAP_oasis", 0, 0, true, false ],
-                [ 0, "bloom", "LOC_MAP_bloom", 0, 0, true, false ],
-                [ 0, "present_delivery", "LOC_MAP_present_delivery", 0, 0, false, false ],
-                [ 0, "rabbit_holes", "LOC_MAP_rabbit_holes", 0, 0, false, false ],
-                [ 0, "snowy_backyard", "LOC_MAP_snowy_backyard", 0, 0, false, false ],
-                [ 0, "sprint_track", "LOC_MAP_sprint_track", 0, 0, false, false ],
-                [ 0, "express_shipping", "LOC_MAP_express_shipping", 0, 0, false, false ],
-                [ 0, "checkers", "LOC_MAP_checkers", 0, 0, true, false ],
-                [ 0, "skull_peak", "LOC_MAP_skull_peak", 0, 0, true, false ],
-                [ 0, "lobby", "LOC_MAP_lobby", 0, 0, true, false ],
-                [ 0, "3_times_around", "LOC_MAP_3_times_around", 0, 0, true, false ],
-                [ 0, "grotto", "LOC_MAP_grotto", 0, 0, true, false ],
-                [ 0, "patch", "LOC_MAP_patch", 0, 0, true, false ],
-                [ 0, "hedge_maze", "LOC_MAP_hedge_maze", 0, 0, true, false ],
-                [ 0, "fireworks", "LOC_MAP_fireworks", 0, 0, false, false ],
-                [ 0, "brick_wall", "LOC_MAP_brick_wall", 0, 0, true, false ],
-                [ 0, "z_factor", "LOC_MAP_z_factor", 0, 0, false, false ],
-                [ 0, "maze", "LOC_MAP_maze", 0, 0, true, false ],
-                [ 0, "frozen_lake", "LOC_MAP_frozen_lake", 0, 0, true, false ],
-                [ 0, "roswell", "LOC_MAP_roswell", 0, 0, false, false ],
-                [ 0, "space_truckin", "LOC_MAP_space_truckin", 0, 0, true, false ],
-                [ 1, "sandstorm", "LOC_MAP_sandstorm", 1, 0, true, true ],
-                [ 1, "dark_dungeon", "LOC_MAP_dark_dungeon", 1, 0, true, false ],
-                [ 1, "fast_track", "LOC_MAP_fast_track", 1, 0, false, false ],
-                [ 1, "throne_room", "LOC_MAP_throne_room", 1, 0, false, false ],
-                [ 1, "lonely_heart", "LOC_MAP_lonely_heart", 1, 0, true, false ],
-                [ 1, "autumn_leaves", "LOC_MAP_autumn_leaves", 1, 0, false, false ],
-                [ 1, "forgotten_garden", "LOC_MAP_forgotten_garden", 1, 0, true, false ],
-                [ 1, "head_in_the_clouds", "LOC_MAP_head_in_the_clouds", 1, 0, false, false ],
-                [ 1, "flooded_lane", "LOC_MAP_flooded_lane", 1, 0, true, false ],
-                [ 1, "walk_in_the_park", "LOC_MAP_walk_in_the_park", 1, 0, true, false ],
-                [ 1, "ancient_tomb", "LOC_MAP_ancient_tomb", 1, 0, false, false ],
-                [ 1, "hearthside", "LOC_MAP_hearthside", 1, 0, true, false ],
-                [ 1, "six_feet", "LOC_MAP_six_feet", 1, 0, true, false ],
-                [ 1, "river_rapids", "LOC_MAP_river_rapids", 1, 0, true, false ],
-                [ 1, "wattle_trees", "LOC_MAP_wattle_trees", 1, 0, true, false ],
-                [ 1, "pyramids", "LOC_MAP_pyramids", 1, 0, true, false ],
-                [ 1, "dune_sea", "LOC_MAP_dune_sea", 1, 0, true, false ],
-                [ 1, "lava_fields", "LOC_MAP_lava_fields", 1, 0, false, false ],
-                [ 1, "ice_flow", "LOC_MAP_ice_flow", 0, 0, true, false, true, ["MonkeySub"] ],
-                [ 1, "country_road", "LOC_MAP_country_road", 1, 0, true, false ],
-                [ 1, "jungle", "LOC_MAP_jungle", 1, 0, false, false ],
-                [ 1, "workshop", "LOC_MAP_workshop", 1, 0, false, false ],
-                [ 1, "bloon_of_clubs", "LOC_MAP_bloon_of_clubs", 1, 0, false, false ],
-                [ 1, "archipelago", "LOC_MAP_archipelago", 2, 0, true, false ],
-                [ 1, "crop_circles", "LOC_MAP_crop_circles", 3, 0, false, false ],
-                [ 1, "slalom", "LOC_MAP_slalom", 4, 0, true, false ],
-                [ 1, "stream", "LOC_MAP_stream", 5, 0, true, false ],
-                [ 1, "dock_side", "LOC_MAP_dock_side", 5, 0, true, false ],
-                [ 1, "villageshore", "LOC_MAP_villageshore", 5, 0, true, false ],
-                [ 1, "trick_or_treat", "LOC_MAP_trick_or_treat", 5, 0, true, false ],
-                [ 2, "dollar", "LOC_MAP_dollar", 1, 0, true, false ],
-                [ 2, "egg_hunt", "LOC_MAP_egg_hunt", 1, 0, true, false ],
-                [ 2, "day_of_the_undead", "LOC_MAP_day_of_the_undead", 1, 0, false, false ],
-                [ 2, "promontory", "LOC_MAP_promontory", 1, 0, true, false ],
-                [ 2, "tidal_pools", "LOC_MAP_tidal_pools", 1, 0, true, false ],
-                [ 2, "bigfoot", "LOC_MAP_bigfoot", 1, 0, true, false ],
-                [ 2, "igloos", "LOC_MAP_igloos", 1, 0, true, false ],
-                [ 2, "battle_knot", "LOC_MAP_battle_knot", 1, 0, false, false ],
-                [ 2, "candyland", "LOC_MAP_candyland", 1, 0, true, false ],
-                [ 2, "crypt_keeper", "LOC_MAP_crypt_keeper", 1, 0, true, false ],
-                [ 2, "long_range", "LOC_MAP_long_range", 1, 0, false, false ],
-                [ 2, "water_hazard", "LOC_MAP_water_hazard", 1, 0, true, false ],
-                [ 2, "rink_revenge", "LOC_MAP_rink_revenge", 1, 0, true, false ],
-                [ 2, "challenger_deep", "LOC_MAP_challenger_deep", 0, 0, true, false, true, ["MonkeySub"] ],
-                [ 2, "scorched_earth", "LOC_MAP_scorched_earth", 1, 0, false, false ],
-                [ 2, "u_turn", "LOC_MAP_u_turn", 1, 0, false, false ],
-                [ 2, "the_great_divide", "LOC_MAP_the_great_divide", 1, 0, false, false ],
-                [ 2, "the_eye", "LOC_MAP_the_eye", 1, 0, false, false ],
-                [ 2, "one_direction", "LOC_MAP_one_direction", 1, 0, false, false ],
-                [ 2, "lightning_scar", "LOC_MAP_lightning_scar", 2, 0, false, false ],
-                [ 2, "go_with_the_flow", "LOC_MAP_go_with_the_flow", 3, 0, false, false ],
-                [ 2, "mount_magma", "LOC_MAP_mount_magma", 4, 0, false, false ],
-                [ 2, "siege", "LOC_MAP_siege", 4, 0, false, false ],
-                [ 3, "tributaries", "LOC_MAP_tributaries", -1, 29, false, false ],
-                [ 3, "double_double_crossover", "LOC_MAP_double_double_crossover", -1, 29, false, false ],
-                [ 3, "tunnels", "LOC_MAP_tunnels", -1, 32, false, false ],
-                [ 3, "castle", "LOC_MAP_castle", -1, 35, true, false ],
-                [ 3, "against_the_clock", "LOC_MAP_against_the_clock", -1, 43, false, false ],
-                [ 3, "drag_strip", "LOC_MAP_drag_strip", -1, 44, false, false ],
-                [ 3, "canyon", "LOC_MAP_canyon", -1, 45, false, false ],
-                [ 3, "treetops", "LOC_MAP_treetops", -1, 46, false, false ],
-                [ 3, "runway", "LOC_MAP_runway", -1, 47, false, false ],
-                [ 3, "down_the_drain", "LOC_MAP_down_the_drain", -1, 48, true, false ],
-                [ 3, "benguela", "LOC_MAP_benguela", -1, 49, true, false ],
-                [ 3, "web", "LOC_MAP_web", -1, 49, true, false ],
-                [ 3, "forestpath", "LOC_MAP_forestpath", -1, 49, true, false ],
-                [ 4, "campfire", "LOC_MAP_campfire", -1, 50, false, false ],
-                [ 4, "toxic_waste", "LOC_MAP_toxic_waste", -1, 50, true, false ],
-                [ 4, "tar_pit", "LOC_MAP_tar_pit", -1, 50, true, false ],
-                [ 4, "main_street", "LOC_MAP_main_street", -1, 50, true, false ],
-                [ 4, "radioactive", "LOC_MAP_radioactive", -1, 60, false, false ]
-            ]
-        },
-        coop: {
-            "Tracks": [
-                [ 0, "river_logging", "LOC_MAP_river_logging", 0, 0, true, false ],
-                [ 0, "mosaic", "LOC_MAP_mosaic", 0, 0, true, false ],
-                [ 0, "dancefloor", "LOC_MAP_dancefloor", 0, 0, false, false ],
-                [ 0, "nazca_lines", "LOC_MAP_nazca_lines", 0, 0, false, false ],
-                [ 0, "toyland", "LOC_MAP_toyland", 0, 0, false, false ],
-                [ 0, "daffodils", "LOC_MAP_daffodils", 0, 0, true, false ],
-                [ 0, "carpark", "LOC_MAP_carpark", 0, 0, false, false ],
-                [ 0, "snowman", "LOC_MAP_snowman", 0, 0, false, false ],
-                [ 0, "oasis", "LOC_MAP_oasis", 0, 0, true, false ],
-                [ 0, "bloom", "LOC_MAP_bloom", 0, 0, true, false ],
-                [ 0, "present_delivery", "LOC_MAP_present_delivery", 0, 0, false, false ],
-                [ 0, "rabbit_holes", "LOC_MAP_rabbit_holes", 0, 0, false, false ],
-                [ 0, "snowy_backyard", "LOC_MAP_snowy_backyard", 0, 0, true, false ],
-                [ 0, "checkers", "LOC_MAP_checkers", 0, 0, true, false ],
-                [ 0, "sprint_track", "LOC_MAP_sprint_track", 0, 0, false, false ],
-                [ 0, "grotto", "LOC_MAP_grotto", 0, 0, true, false ],
-                [ 0, "z_factor", "LOC_MAP_z_factor", 0, 0, false, false ],
-                [ 0, "alpine_lake", "LOC_MAP_alpine_lake", 0, 0, true, false ],
-                [ 0, "patch", "LOC_MAP_patch", 0, 0, true, false ],
-                [ 1, "sandstorm", "LOC_MAP_sandstorm", 0, 0, true, true ],
-                [ 1, "dark_dungeon", "LOC_MAP_dark_dungeon", 0, 0, true, false ],
-                [ 1, "fast_track", "LOC_MAP_fast_track", 0, 0, false, false ],
-                [ 1, "throne_room", "LOC_MAP_throne_room", 0, 0, false, false ],
-                [ 1, "lonely_heart", "LOC_MAP_lonely_heart", 0, 0, true, false ],
-                [ 1, "autumn_leaves", "LOC_MAP_autumn_leaves", 0, 0, false, false ],
-                [ 1, "forgotten_garden", "LOC_MAP_forgotten_garden", 0, 0, true, false ],
-                [ 1, "head_in_the_clouds", "LOC_MAP_head_in_the_clouds", 0, 0, false, false ],
-                [ 1, "flooded_lane", "LOC_MAP_flooded_lane", 0, 0, true, false ],
-                [ 1, "walk_in_the_park", "LOC_MAP_walk_in_the_park", 0, 0, true, false ],
-                [ 1, "ancient_tomb", "LOC_MAP_ancient_tomb", 0, 0, false, false ],
-                [ 1, "hearthside", "LOC_MAP_hearthside", 0, 0, true, false ],
-                [ 1, "six_feet", "LOC_MAP_six_feet", 0, 0, true, false ],
-                [ 1, "wattle_trees", "LOC_MAP_wattle_trees", 0, 0, true, false ],
-                [ 1, "dune_sea", "LOC_MAP_dune_sea", 0, 0, true, false ],
-                [ 1, "lava_fields", "LOC_MAP_lava_fields", 0, 0, false, false ],
-                [ 1, "ice_flow", "LOC_MAP_ice_flow", 0, 0, true, false, true, ["MonkeySub"] ],
-                [ 1, "country_road", "LOC_MAP_country_road", 0, 0, true, false ],
-                [ 1, "haunted_swamp", "LOC_MAP_haunted_swamp", 0, 0, true, false ],
-                [ 1, "jungle", "LOC_MAP_jungle", 0, 0, false, false ],
-                [ 1, "south_coast", "LOC_MAP_south_coast", 0, 0, true, false ],
-                [ 1, "stream", "LOC_MAP_stream", 0, 0, true, false ],
-                [ 1, "villageshore", "LOC_MAP_villageshore", 0, 0, true, false ],
-                [ 1, "trick_or_treat", "LOC_MAP_trick_or_treat", 0, 0, true, false ],
-                [ 2, "egg_hunt", "LOC_MAP_egg_hunt", 0, 0, true, false ],
-                [ 2, "day_of_the_undead", "LOC_MAP_day_of_the_undead", 0, 0, false, false ],
-                [ 2, "promontory", "LOC_MAP_promontory", 0, 0, true, false ],
-                [ 2, "tidal_pools", "LOC_MAP_tidal_pools", 0, 0, true, false ],
-                [ 2, "bigfoot", "LOC_MAP_bigfoot", -1, 0, true, false ],
-                [ 2, "igloos", "LOC_MAP_igloos", -1, 0, true, false ],
-                [ 2, "battle_knot", "LOC_MAP_battle_knot", 0, 0, true, false ],
-                [ 2, "candyland", "LOC_MAP_candyland", 0, 0, true, false ],
-                [ 2, "crypt_keeper", "LOC_MAP_crypt_keeper", 0, 0, true, false ],
-                [ 2, "long_range", "LOC_MAP_long_range", 0, 0, false, false ],
-                [ 2, "water_hazard", "LOC_MAP_water_hazard", 0, 0, true, false ],
-                [ 2, "rink_revenge", "LOC_MAP_rink_revenge", 0, 0, true, false ],
-                [ 2, "challenger_deep", "LOC_MAP_challenger_deep", 0, 0, true, false, true, ["MonkeySub"] ],
-                [ 2, "scorched_earth", "LOC_MAP_scorched_earth", 0, 0, false, false ],
-                [ 2, "u_turn", "LOC_MAP_u_turn", 0, 0, false, false ],
-                [ 2, "the_eye", "LOC_MAP_the_eye", 0, 0, false, false ],
-                [ 2, "the_great_divide", "LOC_MAP_the_great_divide", 0, 0, false, false ],
-                [ 2, "unfairshare", "LOC_MAP_unfairshare", 0, 0, false, false ],
-                [ 2, "dollar", "LOC_MAP_dollar", 0, 0, true, false ],
-                [ 2, "siege", "LOC_MAP_siege", 0, 0, true, false ],
-                [ 3, "tributaries", "LOC_MAP_tributaries", 0, 0, false, false ],
-                [ 3, "down_the_drain", "LOC_MAP_down_the_drain", 0, 0, true, false ],
-                [ 3, "runway", "LOC_MAP_runway", 0, 0, true, false ],
-                [ 3, "treetops", "LOC_MAP_treetops", 0, 0, false, false ],
-                [ 3, "spidermap", "LOC_MAP_spidermap", 0, 0, false, false ],
-                [ 3, "castle", "LOC_MAP_castle", 0, 0, true, false ],
-                [ 3, "benguela", "LOC_MAP_benguela", 0, 0, true, false ],
-                [ 3, "web", "LOC_MAP_web", 0, 0, true, false ],
-                [ 3, "forestpath", "LOC_MAP_forestpath", 0, 0, true, false ]
-            ]
-        }
+        standard: defaultTemplate(),
+        coop: defaultTemplate()
     };
+    
+    let modifiedFields = new Set();
+
+    function handleFileSelect(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const json = JSON.parse(e.target.result);
+                // Ensure the loaded file has the required keys
+                const merged = {...defaultTemplate(), ...json};
+                if (file.name.includes('coop')) {
+                    data.coop = merged;
+                    switchTab('coop');
+                } else {
+                    data.standard = merged;
+                    switchTab('standard');
+                }
+                modifiedFields.clear();
+                render();
+            } catch (err) { alert("Invalid JSON file"); }
+        };
+        reader.readAsText(file);
+    }
 
     function switchTab(view) {
         currentView = view;
         document.getElementById('tab-std').classList.toggle('active', view === 'standard');
         document.getElementById('tab-coop').classList.toggle('active', view === 'coop');
-        document.getElementById('preview-title').textContent = `PREVIEW: ${view === 'standard' ? 'tracklist.json' : 'coop_tracklist.json'}`;
         render();
     }
 
-    // New logic to sync Standard into Co-op
+    function update(idx, col, val) {
+        if ([0, 3, 4].includes(col)) val = parseInt(val) || 0;
+        data[currentView].Tracks[idx][col] = val;
+        modifiedFields.add(`${currentView}-T-${idx}-${col}`);
+        render();
+    }
+
+    function clearHighlights() {
+        modifiedFields.clear();
+        render();
+    }
+
     function syncStandardToCoop() {
-        let addedCount = 0;
         const coopNames = new Set(data.coop.Tracks.map(t => t[1]));
-        
-        data.standard.Tracks.forEach(track => {
-            if (!coopNames.has(track[1])) {
-                data.coop.Tracks.push([...track]);
-                addedCount++;
+        data.standard.Tracks.forEach(t => {
+            if (!coopNames.has(t[1])) {
+                data.coop.Tracks.push([...t]);
+                modifiedFields.add(`coop-T-${data.coop.Tracks.length-1}-1`); 
             }
         });
-        
-        alert(`Sync Successful! Added ${addedCount} missing standard levels to Co-op list.`);
         render();
     }
 
-    // Existing logic to sync Co-op into Standard
     function syncCoopToStandard() {
-        let addedCount = 0;
         const stdNames = new Set(data.standard.Tracks.map(t => t[1]));
-        
-        data.coop.Tracks.forEach(track => {
-            if (!stdNames.has(track[1])) {
-                data.standard.Tracks.push([...track]);
-                addedCount++;
+        data.coop.Tracks.forEach(t => {
+            if (!stdNames.has(t[1])) {
+                data.standard.Tracks.push([...t]);
+                modifiedFields.add(`standard-T-${data.standard.Tracks.length-1}-1`);
             }
         });
-        
-        alert(`Sync Successful! Added ${addedCount} missing co-op levels to Standard list.`);
         render();
     }
 
     function render() {
         const container = document.getElementById('container');
         container.innerHTML = '';
-        const list = data[currentView].Tracks;
+        
+        // Render Global Settings First
+        const settingsCard = document.createElement('div');
+        settingsCard.className = 'track-card';
+        settingsCard.style.gridTemplateColumns = '1fr 1fr';
+        settingsCard.innerHTML = `
+            <div class="field"><label>Map Width</label><input type="number" value="${data[currentView].Size[0]}" oninput="data['${currentView}'].Size[0]=parseInt(this.value); render();"></div>
+            <div class="field"><label>Map Height</label><input type="number" value="${data[currentView].Size[1]}" oninput="data['${currentView}'].Size[1]=parseInt(this.value); render();"></div>
+        `;
+        container.appendChild(settingsCard);
 
-        list.forEach((track, idx) => {
+        // Render Tracks
+        data[currentView].Tracks.forEach((track, idx) => {
+            const isRowModified = Array.from(modifiedFields).some(m => m.startsWith(`${currentView}-T-${idx}`));
             const card = document.createElement('div');
-            card.className = 'track-card';
+            card.className = `track-card ${isRowModified ? 'modified' : ''}`;
             card.innerHTML = `
-                <button class="btn btn-del" onclick="removeTrack(${idx})">×</button>
+                <button class="btn" style="background:var(--danger); color:white; position:absolute; top:-5px; right:-5px; width:20px; height:20px; padding:0; border-radius:4px" onclick="data['${currentView}'].Tracks.splice(${idx},1); render();">×</button>
                 <div class="field"><label>Diff</label><input type="number" value="${track[0]}" oninput="update(${idx},0,this.value)"></div>
                 <div class="field"><label>Name</label><input type="text" value="${track[1]}" oninput="update(${idx},1,this.value)"></div>
                 <div class="field"><label>Locale</label><input type="text" value="${track[2]}" oninput="update(${idx},2,this.value)"></div>
@@ -315,22 +201,42 @@
             `;
             container.appendChild(card);
         });
-        document.getElementById('json-output').textContent = JSON.stringify(data[currentView], null, 4);
+
+        const output = document.getElementById('json-output');
+        output.innerHTML = generateFullHighlightedJSON(data[currentView]);
     }
 
-    function update(idx, col, val) {
-        if ([0, 3, 4].includes(col)) val = parseInt(val) || 0;
-        data[currentView].Tracks[idx][col] = val;
-        document.getElementById('json-output').textContent = JSON.stringify(data[currentView], null, 4);
+    function generateFullHighlightedJSON(obj) {
+        let jsonStr = `{\n`;
+        jsonStr += `    "Size" : [ ${obj.Size[0]}, ${obj.Size[1]} ],\n`;
+        
+        jsonStr += `    "DifficultyColours" :\n    [\n`;
+        jsonStr += obj.DifficultyColours.map(c => `        [${c.join(', ')}]`).join(',\n');
+        jsonStr += `\n    ],\n`;
+
+        jsonStr += `    "DifficultyDescriptions" :\n    [\n`;
+        jsonStr += obj.DifficultyDescriptions.map(d => `        "${d}"`).join(',\n');
+        jsonStr += `\n    ],\n`;
+
+        jsonStr += `    "Tracks" :\n    [\n`;
+        let tracksFormatted = obj.Tracks.map((row, rIdx) => {
+            let rowItems = row.map((val, cIdx) => {
+                let displayVal = typeof val === 'string' ? `"${val}"` : val;
+                if (modifiedFields.has(`${currentView}-T-${rIdx}-${cIdx}`)) {
+                    return `<mark>${displayVal}</mark>`;
+                }
+                return displayVal;
+            });
+            return `        [ ${rowItems.join(', ')} ]`;
+        }).join(',\n');
+        
+        jsonStr += tracksFormatted + `\n    ]\n}`;
+        return jsonStr;
     }
 
     function addTrack() {
         data[currentView].Tracks.unshift([0, "new_level", "LOC_MAP_new", 0, 0, false, false]);
-        render();
-    }
-
-    function removeTrack(idx) {
-        data[currentView].Tracks.splice(idx, 1);
+        modifiedFields.add(`${currentView}-T-0-1`);
         render();
     }
 
