@@ -21,7 +21,7 @@
             margin: 0;
             padding: 0;
             font-family: 'Oetztype-Restored', sans-serif;
-            background: #1a330a url('https://pub-1407f82391df4ab1951418d04be76914.r2.dev/uploads/47c1cbb1-f826-49f9-b40e-fb3000a91eb5.png') no-repeat center center fixed;
+            background: #1a330a url('https://pub-1407f82391df4ab1951418d04be76914.r2.dev/uploads/3755688d-7013-49f5-b910-6e792f2324a3.jpg') no-repeat center center fixed;
             background-size: cover;
             height: 100vh;
             width: 100vw;
@@ -32,30 +32,23 @@
             position: relative;
         }
 
-        /* BRIGHTENED MOLTEN ROCK WITH LAVA CRACKS */
         .lava-text {
             font-size: clamp(2.5em, 6vw, 4.8em);
             text-transform: uppercase;
             text-align: center;
             line-height: 1.0;
             letter-spacing: 1px;
-            
-            /* Brightened Background layers: Larger hot yellow spots + Lighter Rock Base */
             background: 
                 radial-gradient(circle at 15% 25%, #ffff00 0%, transparent 12%),
                 radial-gradient(circle at 75% 55%, #ffae00 0%, transparent 15%),
                 radial-gradient(circle at 45% 85%, #ffdd00 0%, transparent 10%),
-                linear-gradient(to bottom, #555 0%, #333 100%); /* Lighter Rock Base */
-            
+                linear-gradient(to bottom, #555 0%, #333 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            -webkit-text-stroke: 5px #000; /* Slightly thinner stroke for more fill visibility */
+            -webkit-text-stroke: 5px #000;
             paint-order: stroke fill;
-
-            /* Intense Vibrant Glow */
             filter: drop-shadow(0 0 15px rgba(255, 170, 0, 0.9)) brightness(1.2);
             text-shadow: 4px 4px 2px #000;
-            
             animation: magma-pulse 2.5s infinite alternate ease-in-out;
         }
 
@@ -64,7 +57,6 @@
             to { filter: drop-shadow(0 0 25px rgba(255, 230, 0, 1)) brightness(1.4); }
         }
 
-        /* Leaf Framing */
         .corner-leaf {
             position: absolute;
             width: 320px; height: 320px;
@@ -92,7 +84,8 @@
             box-shadow: 0 30px 60px rgba(0,0,0,0.7), inset 0 0 100px rgba(0,0,0,0.4);
             max-width: 750px;
             width: 85%;
-            transform: scale(0.78);
+            /* Updated scale to 67% */
+            transform: scale(0.67);
             text-align: center;
             z-index: 10;
         }
@@ -136,7 +129,7 @@
         }
 
         @media (max-width: 650px) {
-            .hub-container { transform: scale(0.9); width: 95%; padding: 25px; }
+            .hub-container { transform: scale(0.67); width: 95%; padding: 25px; }
             .button-grid { grid-template-columns: 1fr; }
             .corner-leaf { width: 180px; height: 180px; }
         }
