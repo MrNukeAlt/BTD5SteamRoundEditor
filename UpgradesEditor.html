@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BTD Upgrade Editor - Pro</title>
+    <style>
+        :root { --bg: #121212; --card: #1e1e1e; --accent: #00d4ff; --text: #e0e0e0; --green: #28a745; --red: #ff4d4d; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
+        .container { max-width: 1000px; margin: auto; }
+        
+        .header { background: var(--card); padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #333; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+        .controls { display: flex; gap: 10px; align-items: center; }
+        
+        .upgrade-card { background: var(--card); border-radius: 10px; padding: 20px; margin-bottom: 30px; border-left: 6px solid var(--accent); position: relative; }
+        .upgrade-title { font-size: 1.4em; font-weight: bold; color: var(--accent); margin-bottom: 15px; display: block; width: 100%; border: none; background: transparent; border-bottom: 1px solid #444; outline: none; }
+        
+        .editor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .full-width { grid-column: span 2; }
+        
+        h4 { margin: 10px 0 5px 0; color: #888; text-transform: uppercase; font-size: 0.75em; letter-spacing: 1px; }
+        textarea { width: 100%; background: #000; color: #00ff41; border: 1px solid #444; border-radius: 5px; font-family: 'Consolas', monospace; padding: 10px; box-sizing: border-box; resize: vertical; }
+        
+        button { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: 0.2s; }
+        .btn-add { background: var(--green); color: white; }
+        .btn-dl { background: var(--accent); color: #000; }
+        .btn-rm { background: var(--red); color: white; margin-top: 15px; }
+        .btn-status { background: #444; color: #fff; font-size: 0.8em; margin-bottom: 5px; }
+        
+        button:hover { opacity: 0.8; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h2>Upgrade Code Editor</h2>
+        <div class="controls">
+            <input type="file" id="fileInput" accept=".upgrades,.json">
+            <button class="btn-add" onclick="addUpgrade()">+ New Upgrade Block</button>
+            <button class="btn-dl" onclick="downloadFile()">Download File</button>
+        </div>
+    </div>
+
+    <div id="editorArea"></div>
+</div>
+
+<script>
+    let data = { "Upgrades": [] };
+
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                data = JSON.parse(e.target.result);
+                render();
+            } catch (err) { alert("Error reading file. Check if JSON is valid."); }
+        };
+        reader.readAsText(file);
+    });
+
+    function render() {
+        const area = document.getElementById('editorArea');
+        area.innerHTML = '';
+        
+        data.Upgrades.forEach((upg, i) => {
+            const card = document.createElement('div');
+            card.className = 'upgrade-card';
+            
+            // Check for singular or plural WeaponUpgrade keys
+            const towerPart = upg.TowerUpgrade ? JSON.stringify(upg.TowerUpgrade, null, 4) : "{}";
+            const weaponsPart = upg.WeaponUpgrades ? JSON.stringify(upg.WeaponUpgrades, null, 4) : "[]";
+            const weaponSinglePart = upg.WeaponUpgrade ? JSON.stringify(upg.WeaponUpgrade, null, 4) : "{}";
+
+            card.innerHTML = `
+                <input class="upgrade-title" value="${upg.Name || 'New Upgrade'}" oninput="data.Upgrades[${i}].Name = this.value">
+                
+                <div class="editor-grid">
+                    <div>
+                        <h4>TowerUpgrade</h4>
+                        <textarea rows="6" onchange="updateJSON(${i}, 'TowerUpgrade', this.value)">${towerPart}</textarea>
+                    </div>
+                    <div>
+                        <h4>WeaponUpgrade (Single)</h4>
+                        <textarea rows="6" onchange="updateJSON(${i}, 'WeaponUpgrade', this.value)">${weaponSinglePart}</textarea>
+                    </div>
+                    <div class="full-width">
+                        <h4>WeaponUpgrades (Array)</h4>
+                        <textarea rows="12" onchange="updateJSON(${i}, 'WeaponUpgrades', this.value)">${weaponsPart}</textarea>
+                    </div>
+                </div>
+                
+                <button class="btn-rm" onclick="removeUpgrade(${i})">Remove This Upgrade</button>
+            `;
+            area.appendChild(card);
+        });
+    }
+
+    function updateJSON(index, key, value) {
+        try {
+            const parsed = JSON.parse(value);
+            // If it's an empty object/array and doesn't exist in original, we can choose to delete it
+            if (Object.keys(parsed).length === 0 && Array.isArray(parsed) && parsed.length === 0) {
+                delete data.Upgrades[index][key];
+            } else {
+                data.Upgrades[index][key] = parsed;
+            }
+            console.log(`Updated ${key} for upgrade ${index}`);
+        } catch (e) {
+            alert(`JSON Error in ${key}: ${e.message}`);
+        }
+    }
+
+    function removeUpgrade(i) {
+        if(confirm("Delete this upgrade block?")) {
+            data.Upgrades.splice(i, 1);
+            render();
+        }
+    }
+
+    function addUpgrade() {
+        data.Upgrades.push({
+            "Name": "New Upgrade",
+            "TowerUpgrade": { "Replace": {} },
+            "WeaponUpgrade": {},
+            "WeaponUpgrades": []
+        });
+        render();
+    }
+
+    function downloadFile() {
+        // Create a clean copy to download
+        const cleanData = JSON.parse(JSON.stringify(data));
+        
+        // Remove empty keys to keep file clean
+        cleanData.Upgrades.forEach(upg => {
+            if (upg.WeaponUpgrade && Object.keys(upg.WeaponUpgrade).length === 0) delete upg.WeaponUpgrade;
+            if (upg.WeaponUpgrades && upg.WeaponUpgrades.length === 0) delete upg.WeaponUpgrades;
+            if (upg.TowerUpgrade && Object.keys(upg.TowerUpgrade).length === 0) delete upg.TowerUpgrade;
+        });
+
+        const blob = new Blob([JSON.stringify(cleanData, null, 4)], {type : 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'edited_tower.upgrades';
+        a.click();
+    }
+</script>
+
+</body>
+</html>
