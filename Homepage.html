@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BTD5 Modding Hub</title>
+    <style>
+        /* Signature Oetztype Font */
+        @font-face {
+            font-family: 'Oetztype-Restored';
+            src: url('https://raw.githubusercontent.com/nebulimity/btd5-restored/main/godot/assets/fonts/oetztype.ttf') format('truetype');
+            font-display: swap;
+        }
+
+        :root {
+            --hub-wood: url('https://pub-1407f82391df4ab1951418d04be76914.r2.dev/uploads/9468585c-8ad9-497c-92b0-9984d47152c1.png');
+            --btn-stone: url('https://pub-1407f82391df4ab1951418d04be76914.r2.dev/uploads/88a29c29-26c2-4872-ac4c-68f9e0074922.png');
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Oetztype-Restored', sans-serif;
+            background: #1a330a url('https://pub-1407f82391df4ab1951418d04be76914.r2.dev/uploads/47c1cbb1-f826-49f9-b40e-fb3000a91eb5.png') no-repeat center center fixed;
+            background-size: cover;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* BRIGHTENED MOLTEN ROCK WITH LAVA CRACKS */
+        .lava-text {
+            font-size: clamp(2.5em, 6vw, 4.8em);
+            text-transform: uppercase;
+            text-align: center;
+            line-height: 1.0;
+            letter-spacing: 1px;
+            
+            /* Brightened Background layers: Larger hot yellow spots + Lighter Rock Base */
+            background: 
+                radial-gradient(circle at 15% 25%, #ffff00 0%, transparent 12%),
+                radial-gradient(circle at 75% 55%, #ffae00 0%, transparent 15%),
+                radial-gradient(circle at 45% 85%, #ffdd00 0%, transparent 10%),
+                linear-gradient(to bottom, #555 0%, #333 100%); /* Lighter Rock Base */
+            
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            -webkit-text-stroke: 5px #000; /* Slightly thinner stroke for more fill visibility */
+            paint-order: stroke fill;
+
+            /* Intense Vibrant Glow */
+            filter: drop-shadow(0 0 15px rgba(255, 170, 0, 0.9)) brightness(1.2);
+            text-shadow: 4px 4px 2px #000;
+            
+            animation: magma-pulse 2.5s infinite alternate ease-in-out;
+        }
+
+        @keyframes magma-pulse {
+            from { filter: drop-shadow(0 0 10px rgba(255, 100, 0, 0.7)) brightness(1.1); }
+            to { filter: drop-shadow(0 0 25px rgba(255, 230, 0, 1)) brightness(1.4); }
+        }
+
+        /* Leaf Framing */
+        .corner-leaf {
+            position: absolute;
+            width: 320px; height: 320px;
+            background-image: url('https://pub-1407f82391df4ab1951418d04be76914.r2.dev/uploads/74569ae2-b09f-4bef-abcc-568a43a5986d.png');
+            background-repeat: no-repeat;
+            background-size: contain;
+            z-index: 2;
+            pointer-events: none;
+            filter: drop-shadow(5px 5px 10px rgba(0,0,0,0.5));
+        }
+
+        .top-left { top: -10px; left: -10px; transform: scaleX(-1) rotate(180deg); }
+        .top-right { top: -10px; right: -10px; transform: rotate(180deg); }
+        .bottom-left { bottom: -10px; left: -10px; transform: scaleX(-1) rotate(180deg); }
+        .bottom-right { bottom: -10px; right: -10px; transform: rotate(180deg); }
+
+        .hub-container {
+            position: relative;
+            background-image: var(--hub-wood);
+            background-size: cover;
+            background-position: center;
+            padding: 50px 35px;
+            border-radius: 40px;
+            border: 12px solid #3d1f05;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.7), inset 0 0 100px rgba(0,0,0,0.4);
+            max-width: 750px;
+            width: 85%;
+            transform: scale(0.78);
+            text-align: center;
+            z-index: 10;
+        }
+
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 18px;
+            margin-top: 35px;
+        }
+
+        .mod-button {
+            background-image: var(--btn-stone);
+            background-size: 100% 100%;
+            background-repeat: no-repeat;
+            color: white;
+            text-decoration: none;
+            padding: 24px 10px;
+            font-size: 1.25em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-transform: uppercase;
+            text-shadow: 3px 3px 0px #000;
+            transition: transform 0.1s ease, filter 0.2s ease;
+            filter: drop-shadow(0 8px 0 rgba(0,0,0,0.5));
+        }
+
+        .mod-button:hover { filter: drop-shadow(0 8px 0 rgba(0,0,0,0.5)) brightness(1.1); }
+        .mod-button:active {
+            transform: translateY(6px);
+            filter: drop-shadow(0 2px 0 rgba(0,0,0,0.5));
+        }
+
+        .footer-text {
+            margin-top: 35px;
+            font-size: 1.4em;
+            color: #ffcc00;
+            text-shadow: 2px 2px 0px #000;
+            text-transform: uppercase;
+        }
+
+        @media (max-width: 650px) {
+            .hub-container { transform: scale(0.9); width: 95%; padding: 25px; }
+            .button-grid { grid-template-columns: 1fr; }
+            .corner-leaf { width: 180px; height: 180px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="corner-leaf top-left"></div>
+<div class="corner-leaf top-right"></div>
+<div class="corner-leaf bottom-left"></div>
+<div class="corner-leaf bottom-right"></div>
+
+<div class="hub-container">
+    <div class="lava-text">BTD5<br>MODDING HUB</div>
+    
+    <div class="button-grid">
+        <a href="https://mrnukealt.github.io/BTD5SteamRoundEditor/BloonDefinitionsEditor.html" class="mod-button">Bloon Definitions</a>
+        <a href="https://mrnukealt.github.io/BTD5SteamRoundEditor/ModeEditor.html" class="mod-button">Game Mode Editor</a>
+        <a href="https://mrnukealt.github.io/BTD5SteamRoundEditor/TowerandWeaponEditor.html" class="mod-button">Towers & Weapons</a>
+        <a href="https://mrnukealt.github.io/BTD5SteamRoundEditor/TracklistEditor.html" class="mod-button">Track List</a>
+        <a href="https://mrnukealt.github.io/BTD5SteamRoundEditor/UpgradesEditor.html" class="mod-button">Upgrades Editor</a>
+        <a href="https://mrnukealt.github.io/BTD5SteamRoundEditor/RoundsEditor.html" class="mod-button">Rounds Editor</a>
+    </div>
+    <p class="footer-text">Select a stone tool to begin.</p>
+</div>
+
+</body>
+</html>
