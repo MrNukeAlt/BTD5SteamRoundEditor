@@ -158,10 +158,12 @@
 
     function getMousePos(e) {
         const rect = canvas.getBoundingClientRect();
-        const z = 0.67; 
-        // Compensate for CSS zoom on both mouse position and canvas position
+        const z = 0.67; // The exact zoom factor applied in CSS
+        
+        // Fix: Both client coords AND the bounding box must be normalized by zoom factor
         const rawX = (e.clientX / z) - (rect.left / z);
         const rawY = (e.clientY / z) - (rect.top / z);
+        
         return { 
             worldX: (rawX - viewX) / scale, 
             worldY: (rawY - viewY) / scale, 
