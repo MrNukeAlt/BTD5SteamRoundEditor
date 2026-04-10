@@ -159,8 +159,9 @@
     function getMousePos(e) {
         const rect = canvas.getBoundingClientRect();
         const z = 0.67; 
-        const rawX = (e.clientX / z) - (rect.left);
-        const rawY = (e.clientY / z) - (rect.top);
+        // Compensate for CSS zoom on both mouse position and canvas position
+        const rawX = (e.clientX / z) - (rect.left / z);
+        const rawY = (e.clientY / z) - (rect.top / z);
         return { 
             worldX: (rawX - viewX) / scale, 
             worldY: (rawY - viewY) / scale, 
@@ -349,4 +350,5 @@
     initUI();
 </script>
 </body>
+</html>
 </html>
