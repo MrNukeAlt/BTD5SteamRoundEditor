@@ -13,8 +13,6 @@
             display: flex; 
             flex-direction: column; 
             height: 100vh; 
-            
-            /* Apply 67% Zoom */
             zoom: 0.67; 
             -moz-transform: scale(0.67);
             -moz-transform-origin: 0 0;
@@ -27,7 +25,7 @@
         #hud-files { top: 20px; left: 20px; width: 300px; border-color: #00ffcc; }
         #hud-files .hud-header { background: #00ffcc; }
         #hud-toolbox { top: 130px; left: 20px; width: 300px; }
-        #hud-help { top: 320px; left: 20px; width: 300px; border-color: #ffaa00; max-height: 550px; }
+        #hud-help { top: 320px; left: 20px; width: 300px; border-color: #ffaa00; max-height: 450px; }
         #hud-help .hud-header { background: #ffaa00; }
         
         #hud-editor { top: 20px; left: 340px; width: 800px; height: 600px; resize: both; overflow: auto; min-width: 400px; min-height: 300px; }
@@ -35,6 +33,329 @@
         canvas { display: block; width: 100%; height: 100%; }
         
         .btn-ui { cursor: pointer; border-radius: 4px; background: #111; width: 42px; height: 42px; border: 1px solid #333; flex-shrink: 0; }
+        .btn-ui:hover { border-color: #00aaff; }
+        
+        #palette { display: none; background: #111; padding: 5px; border-radius: 4px; margin-top: 5px; gap: 5px; flex-wrap: wrap; }
+        .color-swatch { width: 20px; height: 20px; border-radius: 2px; cursor: pointer; border: 1px solid #fff; }
+        
+        .help-section { font-size: 11px; line-height: 1.4; color: #ccc; }
+        .help-section b { color: #fff; }
+        .credits { font-size: 14px; color: #ffaa00; font-weight: bold; margin-top: 10px; text-align: center; border-top: 1px solid #333; padding-top: 10px; }
+        .download-btn { display: block; background: #ffaa00; color: #000; text-align: center; padding: 10px; text-decoration: none; font-weight: bold; border-radius: 4px; margin-top: 8px; font-size: 11px; }
+        .download-btn:hover { background: #fff; }
+        
+        #log-overlay { position: absolute; bottom: 10px; left: 10px; font-size: 10px; color: #00ffcc; pointer-events: none; text-shadow: 1px 1px 2px black; }
+    </style>
+</head>
+<body>
+
+    <div id="hud-files" class="hud-window">
+        <div class="hud-header" onmousedown="startDrag(event, 'hud-files')">Asset Loader</div>
+        <div class="hud-content" style="flex-direction: column;">
+            <input type="file" id="imgInput" accept="image/png">
+            <input type="file" id="pathInput" accept=".path">
+            <button style="background:#c0392b; color:white; border:none; margin-top:10px; cursor:pointer; padding:5px; border-radius:4px;" onclick="revertAll()">REVERT ALL</button>
+        </div>
+    </div>
+
+    <div id="hud-toolbox" class="hud-window">
+        <div class="hud-header" onmousedown="startDrag(event, 'hud-toolbox')">Toolbox</div>
+        <div class="hud-content" style="flex-direction: column;">
+            <div id="toolbar" style="display:flex; flex-wrap:wrap; gap:4px;"></div>
+            <div id="palette"><div id="swatch-container" style="display:flex; gap:4px;"></div></div>
+            <div id="status" style="font-size:10px; color:#00ffcc; margin-top:5px;">Tool: edit_path_select</div>
+        </div>
+    </div>
+
+    <div id="hud-help" class="hud-window">
+        <div class="hud-header" onmousedown="startDrag(event, 'hud-help')">How to Work Editor</div>
+        <div class="hud-content" style="flex-direction: column;">
+            <div class="help-section">
+                <b>Navigation:</b><br>
+                • <b>Space + Drag:</b> Pan View<br>
+                • <b>Shift + Left Click:</b> Drag World/Image<br>
+                • <b>Mouse Wheel:</b> Zoom In/Out<br><br>
+                <b>Editing:</b><br>
+                • <b>Arrow Keys:</b> Nudge selected node (1px)<br>
+                • <b>Shift + Arrows:</b> Nudge faster (10px)<br>
+                • <b>Select Tool:</b> Drag over nodes to box select<br><br>
+                <b>Flags:</b><br>
+                • <b>Underground Tool:</b> Click path to cycle 0-5<br>
+                • <b>Flag Tool:</b> Click path to enter value manually
+            </div>
+            <div class="credits">Map Editor Made By: MrNuke</div>
+            <a href="https://topper64.co.uk/nk/btd5/monkey_wrench.exe" class="download-btn">DOWNLOAD MONKEY WRENCH</a>
+        </div>
+    </div>
+
+    <div id="hud-editor" class="hud-window">
+        <div class="hud-header" onmousedown="startDrag(event, 'hud-editor')">Map Viewer</div>
+        <div id="canvas-container">
+            <canvas id="editorCanvas"></canvas>
+            <div id="log-overlay">Ready</div>
+        </div>
+    </div>
+
+<script>
+    const canvas = document.getElementById('editorCanvas');
+    const ctx = canvas.getContext('2d');
+    const maskCanvas = document.createElement('canvas');
+    const mCtx = maskCanvas.getContext('2d');
+    const UI_PNG = 'https://pub-1407f82391df4ab1951418d04be76914.r2.dev/uploads/f9ecf014-0326-4eb6-82fc-f36457acfdfe.png';
+    const uiImage = new Image();
+
+    let bgImage = null, pathData = { Nodes: [], Links: [] };
+    let currentTool = "edit_path_select", activeColor = "#00FF00";
+    let scale = 1, viewX = 0, viewY = 0, spacePressed = false;
+    let isDrawing = false, isDragging = false, isPanning = false, isBoxSelecting = false;
+    let selectedNode = null, selectedNodes = [], history = [];
+    let boxStartX, boxStartY, boxEndX, boxEndY, dragStartX, dragStartY, panStartX, panStartY;
+
+    const UI_MAP = {
+        "edit_path_select": {u: [301, 43], s: [215, 129]},
+        "edit_path_move": {u: [219, 0], s: [172, 172]},
+        "edit_path_spawn": {u: [215, 172], s: [348, 0]},
+        "edit_path_underground": {u: [391, 0], s: [258, 129]},
+        "edit_path_flag": {u: [172, 86], s: [86, 172]},        
+        "edit_mask_paintbrush": {u: [129, 43], s: [133, 0]},
+        "edit_mask_road_brush": {u: [172, 43], s: [176, 0]},
+        "edit_mask_water": {u: [86, 86], s: [0, 170]},
+        "edit_mask_block_tower": {u: [43, 43], s: [0, 84]},
+        "main_menu_undo": {u: [43, 258], s: [86, 215]},
+        "save": {u: [43, 301], s: [86, 258]}
+    };
+
+    const PALETTES = {
+        "edit_mask_paintbrush": [{n:"Placeable Land", c:"#00FF00"}, {n:"Nonplaceable Land", c:"#808080"}],
+        "edit_mask_road_brush": [{n:"Placeable Land Path", c:"#008000"}, {n:"Nonplaceable Land Path", c:"#000000"}],
+        "edit_mask_water": [{n:"Placeable Water", c:"#00FFFF"}, {n:"Nonplaceable Water", c:"#0000FF"}],
+        "edit_mask_block_tower": [{n:"Placeable Water Path", c:"#008080"}, {n:"Nonplaceable Water Path", c:"#000080"}]
+    };
+
+    function startDrag(e, id) {
+        if (e.target !== e.currentTarget) return;
+        const hud = document.getElementById(id);
+        let hStartX = e.clientX, hStartY = e.clientY;
+        const moveHandler = (ev) => {
+            hud.style.top = (hud.offsetTop - (hStartY - ev.clientY)) + "px";
+            hud.style.left = (hud.offsetLeft - (hStartX - ev.clientX)) + "px";
+            hStartX = ev.clientX; hStartY = ev.clientY;
+        };
+        const upHandler = () => { document.removeEventListener('mousemove', moveHandler); document.removeEventListener('mouseup', upHandler); };
+        document.addEventListener('mousemove', moveHandler);
+        document.addEventListener('mouseup', upHandler);
+    }
+
+    const resizeObserver = new ResizeObserver(entries => {
+        for (let entry of entries) { canvas.width = entry.contentRect.width; canvas.height = entry.contentRect.height; render(); }
+    });
+    resizeObserver.observe(document.getElementById('canvas-container'));
+
+    function getMousePos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const z = 0.67; 
+        const rawX = (e.clientX / z) - (rect.left / z);
+        const rawY = (e.clientY / z) - (rect.top / z);
+        return { 
+            worldX: (rawX - viewX) / scale, 
+            worldY: (rawY - viewY) / scale, 
+            rawX: rawX, 
+            rawY: rawY 
+        };
+    }
+
+    function distToSegment(p, v, w) {
+        let l2 = Math.pow(v[0]-w[0], 2) + Math.pow(v[1]-w[1], 2);
+        if (l2 == 0) return Math.hypot(p[0]-v[0], p[1]-v[1]);
+        let t = Math.max(0, Math.min(1, ((p[0]-v[0])*(w[0]-v[0]) + (p[1]-v[1])*(w[1]-v[1])) / l2));
+        return Math.hypot(p[0] - (v[0] + t*(w[0]-v[0])), p[1] - (v[1] + t*(w[1]-v[1])));
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+        const pos = getMousePos(e);
+        if (e.button === 1 || spacePressed || (e.shiftKey && e.button === 0)) { 
+            isPanning = true; panStartX = pos.rawX - viewX; panStartY = pos.rawY - viewY; return; 
+        }
+
+        saveState();
+
+        if (currentTool.includes("mask")) {
+            isDrawing = true; paint(pos.worldX, pos.worldY);
+        } else if (currentTool === "edit_path_underground" || currentTool === "edit_path_flag") {
+            pathData.Nodes.forEach(node => {
+                for(let i=0; i < node.Points.length - 1; i++) {
+                    if (distToSegment([pos.worldX, pos.worldY], node.Points[i], node.Points[i+1]) < 15/scale) {
+                        if (currentTool === "edit_path_underground") node.Flags = (node.Flags + 1) % 6;
+                        else {
+                            const val = prompt("Enter Flag Value:", node.Flags);
+                            if (val !== null) node.Flags = parseInt(val) || 0;
+                        }
+                    }
+                }
+            });
+        } else {
+            let hit = null;
+            pathData.Nodes.forEach(n => n.Points.forEach(pt => { if(Math.hypot(pt[0]-pos.worldX, pt[1]-pos.worldY) < 15/scale) hit = pt; }));
+            if (hit) {
+                if (!selectedNodes.includes(hit)) { selectedNode = hit; selectedNodes = []; }
+                isDragging = true; dragStartX = pos.worldX; dragStartY = pos.worldY;
+            } else if (currentTool === "edit_path_select" || currentTool === "edit_path_move") {
+                isBoxSelecting = true; boxStartX = pos.worldX; boxStartY = pos.worldY; boxEndX = pos.worldX; boxEndY = pos.worldY;
+                selectedNodes = []; selectedNode = null;
+            } else if (currentTool === "edit_path_spawn") {
+                pathData.Nodes.push({ Points: [[pos.worldX, pos.worldY]], Flags: 0 });
+            }
+        }
+        render();
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+        const pos = getMousePos(e);
+        if (isPanning) { viewX = pos.rawX - panStartX; viewY = pos.rawY - panStartY; }
+        else if (isDrawing) paint(pos.worldX, pos.worldY);
+        else if (isDragging) {
+            const dx = pos.worldX - dragStartX, dy = pos.worldY - dragStartY;
+            if (selectedNodes.length > 0) selectedNodes.forEach(pt => { pt[0] += dx; pt[1] += dy; });
+            else if (selectedNode) { selectedNode[0] += dx; selectedNode[1] += dy; }
+            dragStartX = pos.worldX; dragStartY = pos.worldY;
+        } else if (isBoxSelecting) { boxEndX = pos.worldX; boxEndY = pos.worldY; updateBoxSelection(); }
+        render();
+    });
+
+    window.addEventListener('mouseup', () => { isPanning = false; isDrawing = false; isDragging = false; isBoxSelecting = false; render(); });
+
+    canvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const pos = getMousePos(e);
+        scale = Math.min(Math.max(0.1, e.deltaY < 0 ? scale * 1.15 : scale / 1.15), 15);
+        viewX = pos.rawX - pos.worldX * scale; viewY = pos.rawY - pos.worldY * scale;
+        render();
+    }, { passive: false });
+
+    function updateBoxSelection() {
+        const l = Math.min(boxStartX, boxEndX), r = Math.max(boxStartX, boxEndX), t = Math.min(boxStartY, boxEndY), b = Math.max(boxStartY, boxEndY);
+        selectedNodes = [];
+        pathData.Nodes.forEach(n => n.Points.forEach(pt => { if (pt[0] >= l && pt[0] <= r && pt[1] >= t && pt[1] <= b) selectedNodes.push(pt); }));
+    }
+
+    function render() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.save(); ctx.translate(viewX, viewY); ctx.scale(scale, scale);
+        if (bgImage) { ctx.globalAlpha = 0.5; ctx.drawImage(bgImage, 0, 0); ctx.globalAlpha = 1; }
+        ctx.globalAlpha = 0.7; ctx.drawImage(maskCanvas, 0, 0); ctx.globalAlpha = 1;
+
+        pathData.Nodes.forEach(node => {
+            ctx.beginPath(); ctx.strokeStyle = "#00ffcc"; ctx.lineWidth = 3/scale;
+            node.Points.forEach((pt, i) => { if(i===0) ctx.moveTo(pt[0], pt[1]); else ctx.lineTo(pt[0], pt[1]); });
+            ctx.stroke();
+
+            if (node.Points.length > 0) {
+                ctx.fillStyle = "white"; ctx.font = `${12/scale}px monospace`;
+                ctx.fillText(`F:${node.Flags || 0}`, node.Points[0][0], node.Points[0][1] - (10/scale));
+            }
+
+            node.Points.forEach(pt => {
+                ctx.fillStyle = (selectedNodes.includes(pt) || selectedNode === pt) ? "white" : "#ff4444";
+                ctx.beginPath(); ctx.arc(pt[0], pt[1], 5/scale, 0, Math.PI*2); ctx.fill();
+            });
+        });
+
+        if (isBoxSelecting) {
+            ctx.strokeStyle = "rgba(0,170,255,0.8)"; ctx.setLineDash([5/scale, 5/scale]);
+            ctx.strokeRect(boxStartX, boxStartY, boxEndX-boxStartX, boxEndY-boxStartY);
+            ctx.setLineDash([]);
+        }
+        ctx.restore();
+    }
+
+    function paint(x, y) { mCtx.fillStyle = activeColor; mCtx.beginPath(); mCtx.arc(x, y, 15, 0, Math.PI * 2); mCtx.fill(); }
+
+    function setTool(name) {
+        currentTool = name; updateToolbar();
+        const pal = document.getElementById('palette');
+        const cont = document.getElementById('swatch-container');
+        if (PALETTES[name]) {
+            pal.style.display = 'flex'; cont.innerHTML = '';
+            PALETTES[name].forEach(item => {
+                const sw = document.createElement('div'); sw.className = 'color-swatch'; sw.style.background = item.c;
+                sw.title = item.n;
+                sw.onclick = () => activeColor = item.c; cont.appendChild(sw);
+            });
+            activeColor = PALETTES[name][0].c;
+        } else pal.style.display = 'none';
+        document.getElementById('status').textContent = `Tool: ${name}`;
+    }
+
+    function updateToolbar() {
+        Object.entries(UI_MAP).forEach(([name, pos]) => {
+            const bCtx = document.getElementById(`btn-${name}`).getContext('2d');
+            const coords = (currentTool === name) ? pos.s : pos.u;
+            bCtx.clearRect(0,0,42,42); bCtx.drawImage(uiImage, coords[0], coords[1], 42, 42, 0, 0, 42, 42);
+        });
+    }
+
+    function initUI() {
+        const toolbar = document.getElementById('toolbar');
+        Object.keys(UI_MAP).forEach(name => {
+            const btn = document.createElement('canvas'); btn.width = 42; btn.height = 42; btn.className = "btn-ui"; btn.id = `btn-${name}`;
+            btn.onclick = () => (name === "main_menu_undo" ? undo() : (name === "save" ? exportData() : setTool(name)));
+            toolbar.appendChild(btn);
+        });
+        uiImage.src = UI_PNG; uiImage.onload = updateToolbar;
+    }
+
+    function saveState() { if (history.length > 20) history.shift(); history.push({ path: JSON.parse(JSON.stringify(pathData)), mask: maskCanvas.toDataURL() }); }
+    function undo() { if (history.length === 0) return; const s = history.pop(); pathData = s.path; const i = new Image(); i.onload = () => { mCtx.clearRect(0,0,maskCanvas.width,maskCanvas.height); mCtx.drawImage(i,0,0); render(); }; i.src = s.mask; }
+    
+    function exportData() {
+        // Export JSON path data
+        const pathBlob = new Blob([JSON.stringify(pathData, null, 4)], {type:'application/json'});
+        const pathUrl = URL.createObjectURL(pathBlob);
+        const pathLink = document.createElement('a');
+        pathLink.href = pathUrl; pathLink.download = 'export.path'; pathLink.click();
+        URL.revokeObjectURL(pathUrl);
+
+        // Export Mask PNG
+        const maskUrl = maskCanvas.toDataURL("image/png");
+        const maskLink = document.createElement('a');
+        maskLink.href = maskUrl; maskLink.download = 'modified-mask.png'; maskLink.click();
+        
+        document.getElementById('status').textContent = "Saved: Path & modified-mask.png";
+    }
+
+    function revertAll() { if(confirm("Clear All?")) { pathData = {Nodes:[], Links:[]}; mCtx.clearRect(0,0,maskCanvas.width,maskCanvas.height); render(); } }
+
+    document.getElementById('imgInput').onchange = (e) => {
+        const r = new FileReader(); r.onload = (ev) => {
+            bgImage = new Image(); bgImage.onload = () => { maskCanvas.width = bgImage.width; maskCanvas.height = bgImage.height; render(); };
+            bgImage.src = ev.target.result;
+        }; r.readAsDataURL(e.target.files[0]);
+    };
+    document.getElementById('pathInput').onchange = async (e) => { pathData = JSON.parse(await e.target.files[0].text()); render(); };
+
+    window.addEventListener('keydown', (e) => {
+        if (e.code === 'Space') spacePressed = true;
+        const isArrow = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code);
+        if (isArrow && (selectedNode || selectedNodes.length > 0)) {
+            e.preventDefault();
+            const nudge = e.shiftKey ? 10 : 1;
+            let dx = 0, dy = 0;
+            if (e.code === "ArrowUp") dy = -nudge;
+            if (e.code === "ArrowDown") dy = nudge;
+            if (e.code === "ArrowLeft") dx = -nudge;
+            if (e.code === "ArrowRight") dx = nudge;
+            saveState();
+            if (selectedNodes.length > 0) selectedNodes.forEach(pt => { pt[0]+=dx; pt[1]+=dy; });
+            else if (selectedNode) { selectedNode[0]+=dx; selectedNode[1]+=dy; }
+            render();
+        }
+    });
+    window.addEventListener('keyup', (e) => { if(e.code === 'Space') spacePressed = false; });
+
+    initUI();
+</script>
+</body>
+</html>        .btn-ui { cursor: pointer; border-radius: 4px; background: #111; width: 42px; height: 42px; border: 1px solid #333; flex-shrink: 0; }
         .btn-ui:hover { border-color: #00aaff; }
         
         #palette { display: none; background: #111; padding: 5px; border-radius: 4px; margin-top: 5px; gap: 5px; flex-wrap: wrap; }
