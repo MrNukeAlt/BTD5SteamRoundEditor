@@ -81,12 +81,9 @@
                 • <b>Arrow Keys:</b> Nudge selected node (1px)<br>
                 • <b>Shift + Arrows:</b> Nudge faster (10px)<br>
                 • <b>Select Tool:</b> Drag over nodes to box select<br><br>
-                <b>Flag Numbers:</b><br>
-                • <b>0:</b> Standard Path / Walkable<br>
-                • <b>1:</b> Start / Entry Segment<br>
-                • <b>2:</b> End / Exit Segment<br>
-                • <b>4:</b> Straight Connection / Jump<br>
-                • <b>3/5:</b> Special Traversal
+                <b>Flags:</b><br>
+                • <b>Underground Tool:</b> Click path to cycle 0-5<br>
+                • <b>Flag Tool:</b> Click path to enter value manually
             </div>
             <div class="credits">Map Editor Made By: MrNuke</div>
             <a href="https://topper64.co.uk/nk/btd5/monkey_wrench.exe" class="download-btn">DOWNLOAD MONKEY WRENCH</a>
@@ -158,12 +155,9 @@
 
     function getMousePos(e) {
         const rect = canvas.getBoundingClientRect();
-        const z = 0.67; // The exact zoom factor applied in CSS
-        
-        // Fix: Both client coords AND the bounding box must be normalized by zoom factor
+        const z = 0.67; 
         const rawX = (e.clientX / z) - (rect.left / z);
         const rawY = (e.clientY / z) - (rect.top / z);
-        
         return { 
             worldX: (rawX - viewX) / scale, 
             worldY: (rawY - viewY) / scale, 
@@ -276,13 +270,7 @@
         ctx.restore();
     }
 
-    function paint(x, y) { 
-        mCtx.fillStyle = activeColor; 
-        mCtx.beginPath(); 
-        mCtx.arc(x, y, 15, 0, Math.PI * 2); 
-        mCtx.fill(); 
-        mCtx.closePath();
-    }
+    function paint(x, y) { mCtx.fillStyle = activeColor; mCtx.beginPath(); mCtx.arc(x, y, 15, 0, Math.PI * 2); mCtx.fill(); }
 
     function setTool(name) {
         currentTool = name; updateToolbar();
@@ -319,7 +307,23 @@
 
     function saveState() { if (history.length > 20) history.shift(); history.push({ path: JSON.parse(JSON.stringify(pathData)), mask: maskCanvas.toDataURL() }); }
     function undo() { if (history.length === 0) return; const s = history.pop(); pathData = s.path; const i = new Image(); i.onload = () => { mCtx.clearRect(0,0,maskCanvas.width,maskCanvas.height); mCtx.drawImage(i,0,0); render(); }; i.src = s.mask; }
-    function exportData() { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(pathData, null, 4)], {type:'application/json'})); a.download = 'export.path'; a.click(); }
+    
+    function exportData() {
+        // Export JSON path data
+        const pathBlob = new Blob([JSON.stringify(pathData, null, 4)], {type:'application/json'});
+        const pathUrl = URL.createObjectURL(pathBlob);
+        const pathLink = document.createElement('a');
+        pathLink.href = pathUrl; pathLink.download = 'export.path'; pathLink.click();
+        URL.revokeObjectURL(pathUrl);
+
+        // Export Mask PNG
+        const maskUrl = maskCanvas.toDataURL("image/png");
+        const maskLink = document.createElement('a');
+        maskLink.href = maskUrl; maskLink.download = 'unmasked.png'; maskLink.click();
+        
+        document.getElementById('status').textContent = "Saved: Path & unmasked.png";
+    }
+
     function revertAll() { if(confirm("Clear All?")) { pathData = {Nodes:[], Links:[]}; mCtx.clearRect(0,0,maskCanvas.width,maskCanvas.height); render(); } }
 
     document.getElementById('imgInput').onchange = (e) => {
