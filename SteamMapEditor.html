@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Map Editor - MrNuke Edition (67% Scale)</title>
+    <title>Map Editor - MrNuke Edition</title>
     <style>
         @font-face {
             font-family: 'Oetztype-Restored';
@@ -11,53 +11,23 @@
         }
 
         body { 
-            font-family: 'Oetztype-Restored', 'Segoe UI', sans-serif; 
+            font-family: 'Oetztype-Restored', sans-serif; 
             background: #1a1a1d; 
-            color: #efefef; 
             margin: 0; 
             overflow: hidden; 
             display: flex; 
             flex-direction: column; 
             height: 100vh;
-            /* Global scale fix */
             zoom: 0.67; 
         }
 
-        .hud-window { 
-            position: absolute; 
-            background: #1e1e23; 
-            border: 2px solid #00aaff; 
-            border-radius: 8px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.6); 
-            z-index: 100; 
-            display: flex; 
-            flex-direction: column; 
-            overflow: hidden; 
-        }
-        
-        .hud-header { 
-            background: #00aaff; 
-            color: #000; 
-            padding: 10px 15px; 
-            cursor: move; 
-            font-size: 14px; 
-            text-transform: uppercase; 
-            user-select: none; 
-            flex-shrink: 0; 
-        }
-
-        .hud-content { 
-            display: flex; 
-            padding: 10px; 
-            gap: 8px; 
-            background: #1e1e23; 
-            flex-grow: 1; 
-        }
+        .hud-window { position: absolute; background: #1e1e23; border: 2px solid #00aaff; border-radius: 8px; z-index: 100; display: flex; flex-direction: column; }
+        .hud-header { background: #00aaff; color: #000; padding: 10px; cursor: move; font-size: 14px; text-transform: uppercase; user-select: none; }
+        .hud-content { display: flex; padding: 10px; gap: 8px; background: #1e1e23; flex-direction: column; }
         
         #hud-files { top: 20px; left: 20px; width: 300px; border-color: #00ffcc; }
         #hud-files .hud-header { background: #00ffcc; }
-        
-        #hud-toolbox { top: 150px; left: 20px; width: 320px; }
+        #hud-toolbox { top: 180px; left: 20px; width: 320px; }
         
         #brush-size-container { 
             display: none; 
@@ -66,83 +36,44 @@
             border-top: 1px solid #333; 
             align-items: center; 
             gap: 12px; 
-            background: #16161a;
-            border-radius: 4px;
         }
 
-        .size-slider { flex-grow: 1; cursor: pointer; accent-color: #00aaff; height: 8px; }
-
-        #hud-editor { 
-            top: 20px; 
-            left: 360px; 
-            width: 1100px; 
-            height: 800px; 
-            resize: both; 
-            overflow: hidden; 
-            min-width: 400px; 
-            min-height: 300px; 
-        }
-
-        #canvas-container { 
-            position: relative; 
-            width: 100%; 
-            height: 100%; 
-            background: #000; 
-            overflow: hidden; 
-            cursor: crosshair; 
-        }
-
-        canvas { display: block; }
+        #hud-editor { top: 20px; left: 360px; width: 1100px; height: 800px; resize: both; overflow: hidden; }
+        #canvas-container { position: relative; width: 100%; height: 100%; background: #000; overflow: hidden; }
         
         .btn-ui { cursor: pointer; border-radius: 4px; background: #111; width: 42px; height: 42px; border: 1px solid #333; }
-        .btn-ui:hover { border-color: #00aaff; background: #222; }
-        
-        #palette { display: none; background: #111; padding: 8px; border-radius: 4px; margin-top: 5px; gap: 8px; flex-wrap: wrap; border: 1px solid #333; }
-        .color-swatch { width: 28px; height: 28px; border-radius: 4px; cursor: pointer; border: 2px solid transparent; }
-        .color-swatch:hover { border-color: white; }
-        
-        #log-overlay { position: absolute; bottom: 10px; left: 10px; font-size: 12px; color: #00ffcc; pointer-events: none; text-shadow: 1px 1px 2px black; }
+        .color-swatch { width: 28px; height: 28px; cursor: pointer; border: 2px solid transparent; }
+        #palette { display: none; gap: 8px; flex-wrap: wrap; margin-top: 5px; }
     </style>
 </head>
 <body>
 
     <div id="hud-files" class="hud-window">
         <div class="hud-header" onmousedown="startDrag(event, 'hud-files')">Asset Loader</div>
-        <div class="hud-content" style="flex-direction: column;">
-            <label style="font-size:10px;">MAP IMAGE (PNG)</label>
+        <div class="hud-content">
+            <label style="font-size:10px; color:#00ffcc;">MAP IMAGE</label>
             <input type="file" id="imgInput" accept="image/png">
-            <label style="font-size:10px; margin-top:5px;">PATH DATA (.path)</label>
+            <label style="font-size:10px; color:#00ffcc; margin-top:5px;">PATH DATA (.path)</label>
             <input type="file" id="pathInput" accept=".path">
-            <button style="font-family:'Oetztype-Restored'; background:#c0392b; color:white; border:none; margin-top:10px; cursor:pointer; padding:8px; border-radius:4px;" onclick="revertAll()">REVERT ALL</button>
         </div>
     </div>
 
     <div id="hud-toolbox" class="hud-window">
         <div class="hud-header" onmousedown="startDrag(event, 'hud-toolbox')">Toolbox</div>
-        <div class="hud-content" style="flex-direction: column;">
+        <div class="hud-content">
             <div id="toolbar" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
-            
-            <div id="palette">
-                <div id="swatch-container" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
-                <canvas id="btn-paint_bucket" width="42" height="42" class="btn-ui" style="display:none;"></canvas>
-            </div>
-            
+            <div id="palette"><div id="swatch-container" style="display:flex; gap:6px;"></div></div>
             <div id="brush-size-container">
-                <canvas id="btn-edit_mask_brush_size" width="42" height="42" style="background:transparent;"></canvas>
-                <input type="range" id="sizeSlider" class="size-slider" min="1" max="200" value="15">
-                <span id="sizeValue" style="font-size:14px; width:35px; text-align:right;">15</span>
+                <canvas id="btn-edit_mask_brush_size" width="42" height="42"></canvas>
+                <input type="range" id="sizeSlider" min="5" max="150" value="15" style="flex-grow:1;">
+                <span id="sizeValue">15</span>
             </div>
-
-            <div id="status" style="font-size:11px; color:#00ffcc; margin-top:5px; border-top: 1px solid #333; pt: 5px;">Tool: edit_path_select</div>
         </div>
     </div>
 
     <div id="hud-editor" class="hud-window">
         <div class="hud-header" onmousedown="startDrag(event, 'hud-editor')">Map Viewer</div>
-        <div id="canvas-container">
-            <canvas id="editorCanvas"></canvas>
-            <div id="log-overlay">Ready</div>
-        </div>
+        <div id="canvas-container"><canvas id="editorCanvas"></canvas></div>
     </div>
 
 <script>
@@ -153,45 +84,28 @@
     const UI_PNG = 'https://pub-1407f82391df4ab1951418d04be76914.r2.dev/uploads/f9ecf014-0326-4eb6-82fc-f36457acfdfe.png';
     const uiImage = new Image();
 
-    // Paint Bucket Assets
-    const bucketNormal = new Image(); bucketNormal.src = 'https://pub-1407f82391df4ab1951418d04be76914.r2.dev/uploads/9ff742a7-8b09-418b-8e84-48ad78666321.png';
-    const bucketSelected = new Image(); bucketSelected.src = 'https://pub-1407f82391df4ab1951418d04be76914.r2.dev/uploads/c436a5c6-2f66-4aff-b687-00aa298b0f1d.png';
-
     let bgImage = null, pathData = { Nodes: [] };
-    let currentTool = "edit_path_select", activeColor = "#00FF00", brushSize = 15, isBucketMode = false;
-    let scale = 1, viewX = 0, viewY = 0, spacePressed = false;
-    let isDrawing = false, isPanning = false;
+    let currentTool = "edit_path_select", activeColor = "#00FF00", brushSize = 15;
+    let scale = 1, viewX = 0, viewY = 0, isDrawing = false;
 
     const UI_MAP = {
         "edit_path_select": {u: [301, 43], s: [215, 129]},
-        "edit_path_move": {u: [219, 0], s: [172, 172]},
-        "edit_path_spawn": {u: [215, 172], s: [348, 0]},
         "edit_mask_paintbrush": {u: [129, 43], s: [133, 0]},
         "edit_mask_road_brush": {u: [172, 43], s: [176, 0]},
         "edit_mask_water": {u: [86, 86], s: [0, 170]},
-        "edit_mask_block_tower": {u: [43, 43], s: [0, 84]},
-        "edit_mask_brush_size": {u: [86, 43], s: [90, 0]},
-        "main_menu_undo": {u: [43, 258], s: [86, 215]},
-        "save": {u: [43, 301], s: [86, 258]}
-    };
-
-    const PALETTES = {
-        "edit_mask_paintbrush": [{n:"Land", c:"#00FF00"}, {n:"Eraser", c:"#000000"}],
-        "edit_mask_road_brush": [{n:"Path", c:"#008000"}],
-        "edit_mask_water": [{n:"Water", c:"#00FFFF"}],
-        "edit_mask_block_tower": [{n:"Blocked", c:"#808080"}]
+        "edit_mask_brush_size": {u: [86, 43], s: [90, 0]}
     };
 
     function startDrag(e, id) {
         if (e.target !== e.currentTarget) return;
         const hud = document.getElementById(id);
-        let startX = e.clientX, startY = e.clientY;
+        let sX = e.clientX, sY = e.clientY;
         const move = (ev) => {
-            hud.style.top = (hud.offsetTop + (ev.clientY - startY)/0.67) + "px";
-            hud.style.left = (hud.offsetLeft + (ev.clientX - startX)/0.67) + "px";
-            startX = ev.clientX; startY = ev.clientY;
+            hud.style.top = (hud.offsetTop + (ev.clientY - sY)/0.67) + "px";
+            hud.style.left = (hud.offsetLeft + (ev.clientX - sX)/0.67) + "px";
+            sX = ev.clientX; sY = ev.clientY;
         };
-        const stop = () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', stop); };
+        const stop = () => { window.removeEventListener('mousemove', move); };
         window.addEventListener('mousemove', move);
         window.addEventListener('mouseup', stop);
     }
@@ -200,141 +114,89 @@
         const rect = canvas.getBoundingClientRect();
         const rawX = (e.clientX / 0.67) - rect.left;
         const rawY = (e.clientY / 0.67) - rect.top;
-        return { 
-            worldX: (rawX - viewX) / scale, 
-            worldY: (rawY - viewY) / scale,
-            rawX, rawY
-        };
+        return { worldX: (rawX - viewX) / scale, worldY: (rawY - viewY) / scale };
     }
 
-    canvas.addEventListener('mousedown', (e) => {
-        const pos = getMousePos(e);
-        if (e.button === 1 || spacePressed) { isPanning = true; panStartX = pos.rawX - viewX; panStartY = pos.rawY - viewY; return; }
-        
-        if (currentTool.includes("mask")) {
-            isDrawing = true;
-            paint(pos.worldX, pos.worldY);
-        }
-    });
+    // Path Loader
+    document.getElementById('pathInput').onchange = (e) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            try {
+                pathData = JSON.parse(ev.target.result);
+                render();
+            } catch (err) { alert("Invalid .path file."); }
+        };
+        reader.readAsText(e.target.files[0]);
+    };
 
-    canvas.addEventListener('mousemove', (e) => {
-        const pos = getMousePos(e);
-        if (isPanning) { viewX = pos.rawX - panStartX; viewY = pos.rawY - panStartY; }
-        else if (isDrawing) paint(pos.worldX, pos.worldY);
-        render();
-    });
+    canvas.addEventListener('mousedown', (e) => { if(currentTool.includes("mask")) isDrawing = true; paint(getMousePos(e)); });
+    canvas.addEventListener('mousemove', (e) => { if(isDrawing) paint(getMousePos(e)); });
+    window.addEventListener('mouseup', () => isDrawing = false);
 
-    window.addEventListener('mouseup', () => { isDrawing = false; isPanning = false; });
-
-    function paint(x, y) {
+    function paint(pos) {
         mCtx.fillStyle = activeColor;
-        mCtx.beginPath();
-        mCtx.arc(x, y, brushSize, 0, Math.PI * 2);
-        mCtx.fill();
+        mCtx.beginPath(); mCtx.arc(pos.worldX, pos.worldY, brushSize, 0, Math.PI*2); mCtx.fill();
+        render();
+    }
+
+    function render() {
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        ctx.save(); ctx.translate(viewX, viewY); ctx.scale(scale, scale);
+        if(bgImage) ctx.drawImage(bgImage, 0, 0);
+        ctx.globalAlpha = 0.6; ctx.drawImage(maskCanvas, 0, 0); ctx.globalAlpha = 1;
+
+        if(pathData.Nodes) {
+            pathData.Nodes.forEach(node => {
+                ctx.beginPath(); ctx.strokeStyle = "#00ffcc"; ctx.lineWidth = 2/scale;
+                node.Points.forEach((pt, i) => i === 0 ? ctx.moveTo(pt[0], pt[1]) : ctx.lineTo(pt[0], pt[1]));
+                ctx.stroke();
+                node.Points.forEach(pt => { ctx.fillStyle = "red"; ctx.beginPath(); ctx.arc(pt[0], pt[1], 4/scale, 0, 7); ctx.fill(); });
+            });
+        }
+        ctx.restore();
     }
 
     function setTool(name) {
-        if (name === "paint_bucket") { isBucketMode = !isBucketMode; } 
-        else { currentTool = name; isBucketMode = false; }
-
-        const isMask = currentTool.includes("mask");
-        document.getElementById('palette').style.display = isMask ? 'flex' : 'none';
+        currentTool = name;
+        const isMask = name.includes("mask");
         document.getElementById('brush-size-container').style.display = isMask ? 'flex' : 'none';
-        document.getElementById('btn-paint_bucket').style.display = isMask ? 'block' : 'none';
-
-        if (isMask && PALETTES[currentTool]) {
-            const cont = document.getElementById('swatch-container');
-            cont.innerHTML = '';
-            PALETTES[currentTool].forEach(item => {
-                const sw = document.createElement('div');
-                sw.className = 'color-swatch';
-                sw.style.background = item.c;
-                sw.onclick = () => activeColor = item.c;
-                cont.appendChild(sw);
-            });
-            activeColor = PALETTES[currentTool][0].c;
-        }
-
         updateToolbar();
-        document.getElementById('status').textContent = `Tool: ${currentTool}`;
     }
 
     function updateToolbar() {
         Object.entries(UI_MAP).forEach(([name, pos]) => {
             const btn = document.getElementById(`btn-${name}`);
-            if (!btn) return;
+            if(!btn) return;
             const bCtx = btn.getContext('2d');
-            bCtx.clearRect(0, 0, 42, 42);
-            
-            let isSelected = (currentTool === name);
-            if (name === "edit_mask_brush_size" && currentTool.includes("mask")) isSelected = true;
-            
+            const isSelected = (currentTool === name) || (name === "edit_mask_brush_size" && currentTool.includes("mask"));
             const coords = isSelected ? pos.s : pos.u;
+            bCtx.clearRect(0,0,42,42);
             bCtx.drawImage(uiImage, coords[0], coords[1], 42, 42, 0, 0, 42, 42);
         });
-
-        // Update Bucket Icon separately
-        const bBtn = document.getElementById('btn-paint_bucket');
-        const bCtx = bBtn.getContext('2d');
-        bCtx.clearRect(0,0,42,42);
-        bCtx.drawImage(isBucketMode ? bucketSelected : bucketNormal, 0, 0, 42, 42);
-    }
-
-    function render() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.save();
-        ctx.translate(viewX, viewY);
-        ctx.scale(scale, scale);
-        if (bgImage) ctx.drawImage(bgImage, 0, 0);
-        ctx.globalAlpha = 0.6;
-        ctx.drawImage(maskCanvas, 0, 0);
-        ctx.restore();
     }
 
     function initUI() {
         const toolbar = document.getElementById('toolbar');
         Object.keys(UI_MAP).forEach(name => {
-            if (name === "edit_mask_brush_size") return;
-            const btn = document.createElement('canvas');
-            btn.width = 42; btn.height = 42; btn.className = "btn-ui"; btn.id = `btn-${name}`;
-            btn.onclick = () => (name === "save" ? console.log("Save") : setTool(name));
-            toolbar.appendChild(btn);
+            if(name === "edit_mask_brush_size") return;
+            const btn = document.createElement('canvas'); btn.width = 42; btn.height = 42; btn.className = "btn-ui"; btn.id = `btn-${name}`;
+            btn.onclick = () => setTool(name); toolbar.appendChild(btn);
         });
-
-        // Brush size logic
-        const slider = document.getElementById('sizeSlider');
-        slider.oninput = function() {
-            brushSize = parseInt(this.value);
-            document.getElementById('sizeValue').textContent = this.value;
-            updateToolbar();
-        };
-
-        uiImage.src = UI_PNG;
-        uiImage.onload = () => {
-            updateToolbar();
-            setTool("edit_path_select");
-        };
+        uiImage.src = UI_PNG; uiImage.onload = () => { updateToolbar(); setTool("edit_path_select"); };
     }
 
-    document.getElementById('imgInput').onchange = (e) => {
-        const file = e.target.files[0];
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            bgImage = new Image();
-            bgImage.onload = () => {
-                maskCanvas.width = bgImage.width;
-                maskCanvas.height = bgImage.height;
-                canvas.width = document.getElementById('hud-editor').offsetWidth;
-                canvas.height = document.getElementById('hud-editor').offsetHeight - 40;
-                render();
-            };
-            bgImage.src = event.target.result;
-        };
-        reader.readAsDataURL(file);
+    document.getElementById('sizeSlider').oninput = function() { 
+        brushSize = this.value; document.getElementById('sizeValue').innerText = this.value; 
     };
 
-    window.addEventListener('keydown', (e) => { if(e.code === 'Space') spacePressed = true; });
-    window.addEventListener('keyup', (e) => { if(e.code === 'Space') spacePressed = false; });
+    document.getElementById('imgInput').onchange = (e) => {
+        const r = new FileReader(); r.onload = (ev) => {
+            bgImage = new Image(); bgImage.onload = () => {
+                maskCanvas.width = bgImage.width; maskCanvas.height = bgImage.height;
+                canvas.width = 1100; canvas.height = 760; render();
+            }; bgImage.src = ev.target.result;
+        }; r.readAsDataURL(e.target.files[0]);
+    };
 
     initUI();
 </script>
