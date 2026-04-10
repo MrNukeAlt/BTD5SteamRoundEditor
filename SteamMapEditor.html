@@ -209,8 +209,6 @@
         if (shiftPressed) {
             isMovingLayer = true;
             layerMoveOrigin = { x: pos.worldX, y: pos.worldY };
-            
-            // Prepare buffer to ensure the mask doesn't get corrupted during drag
             moveBufferCanvas.width = maskCanvas.width;
             moveBufferCanvas.height = maskCanvas.height;
             bCtx.clearRect(0, 0, moveBufferCanvas.width, moveBufferCanvas.height);
@@ -243,20 +241,11 @@
         else if (isMovingLayer) {
             const dx = pos.worldX - layerMoveOrigin.x;
             const dy = pos.worldY - layerMoveOrigin.y;
-            
-            // Move Path Nodes
-            pathData.Nodes.forEach(node => { 
-                node.Points.forEach(pt => { pt[0] += dx; pt[1] += dy; }); 
-            });
-
-            // Move Mask Content by shifting current buffer into maskCanvas
+            pathData.Nodes.forEach(node => { node.Points.forEach(pt => { pt[0] += dx; pt[1] += dy; }); });
             mCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
             mCtx.drawImage(moveBufferCanvas, dx, dy);
-            
-            // Update buffer to new position for continuous dragging
             bCtx.clearRect(0, 0, moveBufferCanvas.width, moveBufferCanvas.height);
             bCtx.drawImage(maskCanvas, 0, 0);
-
             layerMoveOrigin = { x: pos.worldX, y: pos.worldY };
         } else if (isDrawing) paint(pos.worldX, pos.worldY);
         else if (isBoxSelecting) {
@@ -282,19 +271,13 @@
     window.addEventListener('keydown', (e) => { 
         if (e.code === 'Space') spacePressed = true; 
         if (e.code.startsWith('Shift')) shiftPressed = true;
-        
         if (selectedNodes.length > 0 && e.code.startsWith('Arrow')) {
             e.preventDefault(); 
             const step = shiftPressed ? 10 : 1; 
             let dx = 0, dy = 0;
-            if (e.code === 'ArrowUp') dy = -step; 
-            if (e.code === 'ArrowDown') dy = step; 
-            if (e.code === 'ArrowLeft') dx = -step; 
-            if (e.code === 'ArrowRight') dx = step;
-            
-            selectedNodes.forEach(node => { 
-                node.Points.forEach(pt => { pt[0] += dx; pt[1] += dy; }); 
-            });
+            if (e.code === 'ArrowUp') dy = -step; if (e.code === 'ArrowDown') dy = step; 
+            if (e.code === 'ArrowLeft') dx = -step; if (e.code === 'ArrowRight') dx = step;
+            selectedNodes.forEach(node => { node.Points.forEach(pt => { pt[0] += dx; pt[1] += dy; }); });
             render();
         }
     });
@@ -311,52 +294,29 @@
         ctx.save(); 
         ctx.translate(viewX, viewY); 
         ctx.scale(scale, scale);
-        
         if (bgImage) { ctx.globalAlpha = 0.5; ctx.drawImage(bgImage, 0, 0); ctx.globalAlpha = 1; }
         ctx.globalAlpha = 0.7; ctx.drawImage(maskCanvas, 0, 0); ctx.globalAlpha = 1;
-        
         pathData.Nodes.forEach(node => {
             if (!node.Points || node.Points.length === 0) return;
-
             const isSelected = selectedNodes.includes(node);
             let color = isSelected ? "#fff" : "#00ffcc";
-            
             if(!isSelected) {
                 if(node.Flags === 1) color = "#00ff00"; 
                 if(node.Flags === 2) color = "#ff0000"; 
                 if(node.Flags === 5 || node.Flags === 4 || node.Flags === 3) color = "#ff00ff";
             }
-
-            // Draw connecting lines between all internal Points
-            ctx.beginPath(); 
-            ctx.strokeStyle = color; 
-            ctx.lineWidth = (isSelected ? 5 : 3)/scale;
-            node.Points.forEach((pt, i) => {
-                if (i === 0) ctx.moveTo(pt[0], pt[1]);
-                else ctx.lineTo(pt[0], pt[1]);
-            }); 
-            ctx.stroke();
-            
-            // Render handles for ALL points in the node
+            ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = (isSelected ? 5 : 3)/scale;
+            node.Points.forEach((pt, i) => i === 0 ? ctx.moveTo(pt[0], pt[1]) : ctx.lineTo(pt[0], pt[1])); ctx.stroke();
             node.Points.forEach((pt, i) => {
                 ctx.fillStyle = isSelected ? "white" : (i === 0 ? "#ff4444" : "#ffa500"); 
-                ctx.beginPath(); 
-                const radius = (i === 0 ? 6 : 4) / scale;
-                ctx.arc(pt[0], pt[1], radius, 0, Math.PI * 2); 
-                ctx.fill();
+                ctx.beginPath(); ctx.arc(pt[0], pt[1], (i === 0 ? 6 : 4)/scale, 0, Math.PI * 2); ctx.fill();
             });
-
-            // Flag Label at Node Start
             const firstPt = node.Points[0];
-            ctx.fillStyle = "rgba(0,0,0,0.8)"; 
-            ctx.font = `bold ${11/scale}px Arial`; 
-            const flagText = `F:${node.Flags || 0}`; 
-            const txtW = ctx.measureText(flagText).width;
+            ctx.fillStyle = "rgba(0,0,0,0.8)"; ctx.font = `bold ${11/scale}px Arial`; 
+            const flagText = `F:${node.Flags || 0}`; const txtW = ctx.measureText(flagText).width;
             ctx.fillRect(firstPt[0] + 8/scale, firstPt[1] - 15/scale, txtW + 6/scale, 14/scale);
-            ctx.fillStyle = isSelected ? "#fff" : "#00ffcc"; 
-            ctx.fillText(flagText, firstPt[0] + 11/scale, firstPt[1] - 4/scale);
+            ctx.fillStyle = isSelected ? "#fff" : "#00ffcc"; ctx.fillText(flagText, firstPt[0] + 11/scale, firstPt[1] - 4/scale);
         });
-
         if (isBoxSelecting) {
             ctx.strokeStyle = "#00aaff"; ctx.lineWidth = 2/scale; ctx.setLineDash([5/scale, 5/scale]);
             ctx.strokeRect(boxStartX, boxStartY, currentMousePos.worldX - boxStartX, currentMousePos.worldY - boxStartY); ctx.setLineDash([]);
@@ -393,9 +353,19 @@
 
     function initUI() {
         const toolbar = document.getElementById('toolbar');
-        Object.keys(UI_MAP).forEach(name => { if (name === "edit_mask_brush_size") return; const btn = document.createElement('canvas'); btn.width = 42; btn.height = 42; btn.className = "btn-ui"; btn.id = `btn-${name}`; btn.onclick = () => setTool(name); toolbar.appendChild(btn); });
-        document.getElementById('sizeSlider').oninput = function() { brushSize = parseInt(this.value); document.getElementById('sizeValue').innerText = this.value; };
-        uiImage.src = UI_PNG; bucketIdleImg.src = BUCKET_IDLE; bucketActiveImg.src = BUCKET_ACTIVE;
+        Object.keys(UI_MAP).forEach(name => { 
+            if (name === "edit_mask_brush_size") return; 
+            const btn = document.createElement('canvas'); btn.width = 42; btn.height = 42; 
+            btn.className = "btn-ui"; btn.id = `btn-${name}`; btn.onclick = () => setTool(name); toolbar.appendChild(btn); 
+        });
+
+        document.getElementById('sizeSlider').oninput = function() { 
+            brushSize = parseInt(this.value); document.getElementById('sizeValue').innerText = this.value; 
+        };
+
+        uiImage.src = UI_PNG; 
+        bucketIdleImg.src = BUCKET_IDLE; 
+        bucketActiveImg.src = BUCKET_ACTIVE;
         uiImage.onload = () => { updateToolbar(); setTool("edit_path_select"); };
     }
 
@@ -415,25 +385,6 @@
     };
 
     function revertAll() { if(confirm("Clear everything?")) { mCtx.clearRect(0,0,maskCanvas.width,maskCanvas.height); pathData.Nodes = []; render(); } }
-
-    initUI();
-</script>
-</body>
-</html>        uiImage.src = UI_PNG; uiImage.onload = () => { updateToolbar(); setTool("edit_path_select"); };
-    }
-
-    document.getElementById('sizeSlider').oninput = function() { 
-        brushSize = this.value; document.getElementById('sizeValue').innerText = this.value; 
-    };
-
-    document.getElementById('imgInput').onchange = (e) => {
-        const r = new FileReader(); r.onload = (ev) => {
-            bgImage = new Image(); bgImage.onload = () => {
-                maskCanvas.width = bgImage.width; maskCanvas.height = bgImage.height;
-                canvas.width = 1100; canvas.height = 760; render();
-            }; bgImage.src = ev.target.result;
-        }; r.readAsDataURL(e.target.files[0]);
-    };
 
     initUI();
 </script>
