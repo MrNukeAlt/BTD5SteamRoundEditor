@@ -13,7 +13,7 @@
             display: flex; 
             flex-direction: column; 
             height: 100vh; 
-            /* Note: Zoom can cause coordinate offsets; handled in JS */
+            /* Note: Zoom affects getBoundingClientRect, handled in JS */
             zoom: 0.67; 
             -moz-transform: scale(0.67);
             -moz-transform-origin: 0 0;
@@ -171,7 +171,7 @@
         const hud = document.getElementById(id);
         let hStartX = e.clientX, hStartY = e.clientY;
         const moveHandler = (ev) => {
-            // Correct for 0.67 zoom in drag logic
+            // Adjusted for 0.67 zoom factor
             hud.style.top = (hud.offsetTop + (ev.clientY - hStartY) / 0.67) + "px";
             hud.style.left = (hud.offsetLeft + (ev.clientX - hStartX) / 0.67) + "px";
             hStartX = ev.clientX; hStartY = ev.clientY;
@@ -188,7 +188,7 @@
 
     function getMousePos(e) {
         const rect = canvas.getBoundingClientRect();
-        // Crucial Fix: Adjust client coordinates by 0.67 zoom factor
+        // Crucial fix for 0.67 zoom coordinate mismatch
         const rawX = (e.clientX / 0.67) - (rect.left / 0.67);
         const rawY = (e.clientY / 0.67) - (rect.top / 0.67);
         return { 
@@ -292,7 +292,7 @@
     }
 
     function render() {
-        // Essential: Resize canvas to container match to avoid distortion
+        // Fix: Update canvas internal resolution to match display size
         canvas.width = canvas.parentElement.clientWidth;
         canvas.height = canvas.parentElement.clientHeight;
 
@@ -300,14 +300,10 @@
         ctx.save(); 
         ctx.translate(viewX, viewY); 
         ctx.scale(scale, scale);
-
-        // 1. Draw Background First
-        if (bgImage) { ctx.globalAlpha = 0.5; ctx.drawImage(bgImage, 0, 0); ctx.globalAlpha = 1; }
         
-        // 2. Draw Mask Overlay
+        if (bgImage) { ctx.globalAlpha = 0.5; ctx.drawImage(bgImage, 0, 0); ctx.globalAlpha = 1; }
         ctx.globalAlpha = 0.7; ctx.drawImage(maskCanvas, 0, 0); ctx.globalAlpha = 1;
         
-        // 3. Draw Path Nodes
         pathData.Nodes.forEach(node => {
             if (!node.Points || node.Points.length === 0) return;
             const isSelected = selectedNodes.includes(node);
@@ -365,32 +361,23 @@
 
     function initUI() {
         const toolbar = document.getElementById('toolbar');
-        Object.keys(UI_MAP).forEach(name => { 
-            if (name === "edit_mask_brush_size") return; 
-            const btn = document.createElement('canvas'); btn.width = 42; btn.height = 42; 
-            btn.className = "btn-ui"; btn.id = `btn-${name}`; btn.onclick = () => setTool(name); toolbar.appendChild(btn); 
-        });
-
-        document.getElementById('sizeSlider').oninput = function() { 
-            brushSize = parseInt(this.value); document.getElementById('sizeValue').innerText = this.value; 
-        };
-
-        uiImage.src = UI_PNG; 
-        bucketIdleImg.src = BUCKET_IDLE; 
-        bucketActiveImg.src = BUCKET_ACTIVE;
-
-        // Ensure assets are loaded
-        let loadedCount = 0;
-        const checkLoaded = () => {
-            loadedCount++;
-            if(loadedCount === 3) {
+        Object.keys(UI_MAP).forEach(name => { if (name === "edit_mask_brush_size") return; const btn = document.createElement('canvas'); btn.width = 42; btn.height = 42; btn.className = "btn-ui"; btn.id = `btn-${name}`; btn.onclick = () => setTool(name); toolbar.appendChild(btn); });
+        document.getElementById('sizeSlider').oninput = function() { brushSize = parseInt(this.value); document.getElementById('sizeValue').innerText = this.value; };
+        
+        // Asset loading
+        uiImage.src = UI_PNG; bucketIdleImg.src = BUCKET_IDLE; bucketActiveImg.src = BUCKET_ACTIVE;
+        
+        let loaded = 0;
+        const onAssetLoad = () => {
+            loaded++;
+            if(loaded >= 3) {
                 updateToolbar(); 
                 setTool("edit_path_select");
             }
         };
-        uiImage.onload = checkLoaded;
-        bucketIdleImg.onload = checkLoaded;
-        bucketActiveImg.onload = checkLoaded;
+        uiImage.onload = onAssetLoad;
+        bucketIdleImg.onload = onAssetLoad;
+        bucketActiveImg.onload = onAssetLoad;
     }
 
     document.getElementById('imgInput').onchange = (e) => {
