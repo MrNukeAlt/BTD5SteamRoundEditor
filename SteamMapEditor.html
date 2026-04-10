@@ -22,16 +22,11 @@
         .hud-header { background: #00aaff; color: #000; padding: 8px 15px; cursor: move; font-size: 11px; font-weight: 900; text-transform: uppercase; user-select: none; flex-shrink: 0; display: flex; justify-content: space-between; }
         .hud-content { display: flex; padding: 10px; gap: 8px; background: #1e1e23; flex-grow: 1; overflow-y: auto; }
         
-        #hud-files { top: 20px; left: 20px; width: 300px; border-color: #00ffcc; }
-        #hud-files .hud-header { background: #00ffcc; }
         #hud-toolbox { top: 130px; left: 20px; width: 300px; }
         
-        /* Brush Size Styling - Hidden by default */
+        /* Brush Size Styling - Managed by JS for context-aware visibility */
         #brush-size-container { display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid #333; align-items: center; gap: 10px; }
         .size-slider { flex-grow: 1; cursor: pointer; accent-color: #00aaff; }
-        
-        #hud-help { top: 320px; left: 20px; width: 300px; border-color: #ffaa00; max-height: 450px; }
-        #hud-help .hud-header { background: #ffaa00; }
         
         #hud-editor { top: 20px; left: 340px; width: 800px; height: 600px; resize: both; overflow: auto; min-width: 400px; min-height: 300px; }
         #canvas-container { position: relative; width: 100%; height: 100%; background: #000; overflow: hidden; cursor: crosshair; flex-grow: 1; }
@@ -42,26 +37,9 @@
         
         #palette { display: none; background: #111; padding: 5px; border-radius: 4px; margin-top: 5px; gap: 5px; flex-wrap: wrap; }
         .color-swatch { width: 20px; height: 20px; border-radius: 2px; cursor: pointer; border: 1px solid #fff; }
-        
-        .help-section { font-size: 11px; line-height: 1.4; color: #ccc; }
-        .help-section b { color: #fff; }
-        .credits { font-size: 14px; color: #ffaa00; font-weight: bold; margin-top: 10px; text-align: center; border-top: 1px solid #333; padding-top: 10px; }
-        .download-btn { display: block; background: #ffaa00; color: #000; text-align: center; padding: 10px; text-decoration: none; font-weight: bold; border-radius: 4px; margin-top: 8px; font-size: 11px; }
-        .download-btn:hover { background: #fff; }
-        
-        #log-overlay { position: absolute; bottom: 10px; left: 10px; font-size: 10px; color: #00ffcc; pointer-events: none; text-shadow: 1px 1px 2px black; }
     </style>
 </head>
 <body>
-
-    <div id="hud-files" class="hud-window">
-        <div class="hud-header" onmousedown="startDrag(event, 'hud-files')">Asset Loader</div>
-        <div class="hud-content" style="flex-direction: column;">
-            <input type="file" id="imgInput" accept="image/png">
-            <input type="file" id="pathInput" accept=".path">
-            <button style="background:#c0392b; color:white; border:none; margin-top:10px; cursor:pointer; padding:5px; border-radius:4px;" onclick="revertAll()">REVERT ALL</button>
-        </div>
-    </div>
 
     <div id="hud-toolbox" class="hud-window">
         <div class="hud-header" onmousedown="startDrag(event, 'hud-toolbox')">Toolbox</div>
@@ -71,7 +49,7 @@
             
             <div id="brush-size-container">
                 <canvas id="btn-edit_mask_brush_size" width="42" height="42" class="btn-ui" style="cursor:default;"></canvas>
-                <input type="range" id="sizeSlider" class="size-slider" min="5" max="100" value="15">
+                <input type="range" id="sizeSlider" class="size-slider" min="5" max="150" value="15">
                 <span id="sizeValue" style="font-size:10px; width:20px;">15</span>
             </div>
 
@@ -79,29 +57,10 @@
         </div>
     </div>
 
-    <div id="hud-help" class="hud-window">
-        <div class="hud-header" onmousedown="startDrag(event, 'hud-help')">How to Work Editor</div>
-        <div class="hud-content" style="flex-direction: column;">
-            <div class="help-section">
-                <b>Navigation:</b><br>
-                • <b>Space + Drag:</b> Pan View<br>
-                • <b>Shift + Left Click:</b> Drag World/Image<br>
-                • <b>Mouse Wheel:</b> Zoom In/Out<br><br>
-                <b>Editing:</b><br>
-                • <b>Arrow Keys:</b> Nudge selected node (1px)<br>
-                • <b>Shift + Arrows:</b> Nudge faster (10px)<br>
-                • <b>Select Tool:</b> Drag over nodes to box select
-            </div>
-            <div class="credits">Map Editor Made By: MrNuke</div>
-            <a href="https://topper64.co.uk/nk/btd5/monkey_wrench.exe" class="download-btn">DOWNLOAD MONKEY WRENCH</a>
-        </div>
-    </div>
-
     <div id="hud-editor" class="hud-window">
         <div class="hud-header" onmousedown="startDrag(event, 'hud-editor')">Map Viewer</div>
         <div id="canvas-container">
             <canvas id="editorCanvas"></canvas>
-            <div id="log-overlay">Ready</div>
         </div>
     </div>
 
@@ -113,33 +72,26 @@
     const UI_PNG = 'https://pub-1407f82391df4ab1951418d04be76914.r2.dev/uploads/f9ecf014-0326-4eb6-82fc-f36457acfdfe.png';
     const uiImage = new Image();
 
-    let bgImage = null, pathData = { Nodes: [], Links: [] };
     let currentTool = "edit_path_select", activeColor = "#00FF00", brushSize = 15;
-    let scale = 1, viewX = 0, viewY = 0, spacePressed = false;
-    let isDrawing = false, isDragging = false, isPanning = false, isBoxSelecting = false;
-    let selectedNode = null, selectedNodes = [], history = [];
-    let boxStartX, boxStartY, boxEndX, boxEndY, dragStartX, dragStartY, panStartX, panStartY;
+    let bgImage = null, pathData = { Nodes: [] };
 
     const UI_MAP = {
         "edit_path_select": {u: [301, 43], s: [215, 129]},
         "edit_path_move": {u: [219, 0], s: [172, 172]},
-        "edit_path_spawn": {u: [215, 172], s: [348, 0]},
-        "edit_path_underground": {u: [391, 0], s: [258, 129]},
-        "edit_path_flag": {u: [172, 86], s: [86, 172]},        
         "edit_mask_paintbrush": {u: [129, 43], s: [133, 0]},
         "edit_mask_road_brush": {u: [172, 43], s: [176, 0]},
         "edit_mask_water": {u: [86, 86], s: [0, 170]},
         "edit_mask_block_tower": {u: [43, 43], s: [0, 84]},
-        "edit_mask_brush_size": {u: [86, 43], s: [90, 0]},
+        "edit_mask_brush_size": {u: [86, 43], s: [90, 0]}, // Size Toggle
         "main_menu_undo": {u: [43, 258], s: [86, 215]},
         "save": {u: [43, 301], s: [86, 258]}
     };
 
     const PALETTES = {
-        "edit_mask_paintbrush": [{n:"Land", c:"#00FF00"}],
-        "edit_mask_road_brush": [{n:"Path", c:"#008000"}],
-        "edit_mask_water": [{n:"Water", c:"#00FFFF"}, {n:"W.Path", c:"#008080"}],
-        "edit_mask_block_tower": [{n:"L.Block", c:"#808080"}, {n:"P.Block", c:"#000000"}, {n:"W.Block", c:"#0000FF"}, {n:"WP.Block", c:"#000080"}]
+        "edit_mask_paintbrush": [{c:"#00FF00"}],
+        "edit_mask_road_brush": [{c:"#008000"}],
+        "edit_mask_water": [{c:"#00FFFF"}],
+        "edit_mask_block_tower": [{c:"#808080"}]
     };
 
     function startDrag(e, id) {
@@ -156,125 +108,34 @@
         document.addEventListener('mouseup', upHandler);
     }
 
-    const resizeObserver = new ResizeObserver(entries => {
-        for (let entry of entries) { canvas.width = entry.contentRect.width; canvas.height = entry.contentRect.height; render(); }
-    });
-    resizeObserver.observe(document.getElementById('canvas-container'));
-
-    function getMousePos(e) {
-        const rect = canvas.getBoundingClientRect();
-        const z = 0.67; 
-        const rawX = (e.clientX / z) - (rect.left);
-        const rawY = (e.clientY / z) - (rect.top);
-        return { worldX: (rawX - viewX) / scale, worldY: (rawY - viewY) / scale, rawX, rawY };
-    }
-
-    canvas.addEventListener('mousedown', (e) => {
-        const pos = getMousePos(e);
-        if (e.button === 1 || spacePressed || (e.shiftKey && e.button === 0)) { 
-            isPanning = true; panStartX = pos.rawX - viewX; panStartY = pos.rawY - viewY; return; 
-        }
-        saveState();
-        if (currentTool.includes("mask")) {
-            isDrawing = true; paint(pos.worldX, pos.worldY);
-        } else {
-            let hit = null;
-            pathData.Nodes.forEach(n => n.Points.forEach(pt => { if(Math.hypot(pt[0]-pos.worldX, pt[1]-pos.worldY) < 15/scale) hit = pt; }));
-            if (hit) {
-                if (!selectedNodes.includes(hit)) { selectedNode = hit; selectedNodes = []; }
-                isDragging = true; dragStartX = pos.worldX; dragStartY = pos.worldY;
-            } else if (currentTool === "edit_path_select" || currentTool === "edit_path_move") {
-                isBoxSelecting = true; boxStartX = pos.worldX; boxStartY = pos.worldY; boxEndX = pos.worldX; boxEndY = pos.worldY;
-                selectedNodes = []; selectedNode = null;
-            } else if (currentTool === "edit_path_spawn") {
-                pathData.Nodes.push({ Points: [[pos.worldX, pos.worldY]], Flags: 0 });
-            }
-        }
-        render();
-    });
-
-    canvas.addEventListener('mousemove', (e) => {
-        const pos = getMousePos(e);
-        if (isPanning) { viewX = pos.rawX - panStartX; viewY = pos.rawY - panStartY; }
-        else if (isDrawing) paint(pos.worldX, pos.worldY);
-        else if (isDragging) {
-            const dx = pos.worldX - dragStartX, dy = pos.worldY - dragStartY;
-            if (selectedNodes.length > 0) selectedNodes.forEach(pt => { pt[0] += dx; pt[1] += dy; });
-            else if (selectedNode) { selectedNode[0] += dx; selectedNode[1] += dy; }
-            dragStartX = pos.worldX; dragStartY = pos.worldY;
-        } else if (isBoxSelecting) { boxEndX = pos.worldX; boxEndY = pos.worldY; updateBoxSelection(); }
-        render();
-    });
-
-    window.addEventListener('mouseup', () => { isPanning = false; isDrawing = false; isDragging = false; isBoxSelecting = false; render(); });
-
-    canvas.addEventListener('wheel', (e) => {
-        e.preventDefault();
-        const pos = getMousePos(e);
-        scale = Math.min(Math.max(0.1, e.deltaY < 0 ? scale * 1.15 : scale / 1.15), 15);
-        viewX = pos.rawX - pos.worldX * scale; viewY = pos.rawY - pos.worldY * scale;
-        render();
-    }, { passive: false });
-
-    function updateBoxSelection() {
-        const l = Math.min(boxStartX, boxEndX), r = Math.max(boxStartX, boxEndX), t = Math.min(boxStartY, boxEndY), b = Math.max(boxStartY, boxEndY);
-        selectedNodes = [];
-        pathData.Nodes.forEach(n => n.Points.forEach(pt => { if (pt[0] >= l && pt[0] <= r && pt[1] >= t && pt[1] <= b) selectedNodes.push(pt); }));
-    }
-
-    function render() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.save(); ctx.translate(viewX, viewY); ctx.scale(scale, scale);
-        if (bgImage) { ctx.globalAlpha = 0.5; ctx.drawImage(bgImage, 0, 0); ctx.globalAlpha = 1; }
-        ctx.globalAlpha = 0.7; ctx.drawImage(maskCanvas, 0, 0); ctx.globalAlpha = 1;
-
-        pathData.Nodes.forEach(node => {
-            ctx.beginPath(); ctx.strokeStyle = "#00ffcc"; ctx.lineWidth = 3/scale;
-            node.Points.forEach((pt, i) => { if(i===0) ctx.moveTo(pt[0], pt[1]); else ctx.lineTo(pt[0], pt[1]); });
-            ctx.stroke();
-            node.Points.forEach(pt => {
-                ctx.fillStyle = (selectedNodes.includes(pt) || selectedNode === pt) ? "white" : "#ff4444";
-                ctx.beginPath(); ctx.arc(pt[0], pt[1], 5/scale, 0, Math.PI*2); ctx.fill();
-            });
-        });
-        ctx.restore();
-    }
-
-    function paint(x, y) { 
-        mCtx.fillStyle = activeColor; 
-        mCtx.beginPath(); 
-        mCtx.arc(x, y, brushSize, 0, Math.PI * 2); 
-        mCtx.fill(); 
-    }
-
     function setTool(name) {
-        currentTool = name; 
-        updateToolbar();
+        currentTool = name;
         
-        const pal = document.getElementById('palette');
-        const cont = document.getElementById('swatch-container');
-        const sizeContainer = document.getElementById('brush-size-container');
+        const palette = document.getElementById('palette');
+        const swatches = document.getElementById('swatch-container');
+        const sizeUI = document.getElementById('brush-size-container');
 
-        if (PALETTES[name]) {
-            pal.style.display = 'flex'; 
-            cont.innerHTML = '';
+        // Logic: Show brush size if tool name contains 'mask'
+        const isMaskTool = name.includes("mask");
+
+        if (isMaskTool && PALETTES[name]) {
+            palette.style.display = 'flex';
+            swatches.innerHTML = '';
             PALETTES[name].forEach(item => {
-                const sw = document.createElement('div'); 
-                sw.className = 'color-swatch'; 
+                const sw = document.createElement('div');
+                sw.className = 'color-swatch';
                 sw.style.background = item.c;
-                sw.onclick = () => { 
-                    activeColor = item.c; 
-                    sizeContainer.style.display = 'flex'; // SHOW SLIDER WHEN COLOR SELECTED
-                };
-                cont.appendChild(sw);
+                sw.onclick = () => activeColor = item.c;
+                swatches.appendChild(sw);
             });
             activeColor = PALETTES[name][0].c;
-            // Show slider automatically if we switch between different mask brushes
-            sizeContainer.style.display = 'flex';
+            sizeUI.style.display = 'flex'; // SHOW SLIDER
         } else {
-            pal.style.display = 'none';
-            sizeContainer.style.display = 'none'; // HIDE SLIDER FOR PATH TOOLS
+            palette.style.display = 'none';
+            sizeUI.style.display = 'none'; // HIDE SLIDER
         }
+        
+        updateToolbar();
         document.getElementById('status').textContent = `Tool: ${name}`;
     }
 
@@ -284,14 +145,14 @@
             if(!btn) return;
             const bCtx = btn.getContext('2d');
             
-            // Logic for brush size icon to stay "selected" if current tool is a mask brush
+            // Icon logic: Brush Size stays 'selected' while any mask tool is in use
             let isSelected = (currentTool === name);
             if (name === "edit_mask_brush_size" && currentTool.includes("mask")) {
                 isSelected = true;
             }
 
             const coords = isSelected ? pos.s : pos.u;
-            bCtx.clearRect(0,0,42,42); 
+            bCtx.clearRect(0, 0, 42, 42);
             bCtx.drawImage(uiImage, coords[0], coords[1], 42, 42, 0, 0, 42, 42);
         });
     }
@@ -299,8 +160,8 @@
     function initUI() {
         const toolbar = document.getElementById('toolbar');
         Object.keys(UI_MAP).forEach(name => {
-            if (name === "edit_mask_brush_size") return; // Handled separately in toolbox
-            const btn = document.createElement('canvas'); 
+            if (name === "edit_mask_brush_size") return; 
+            const btn = document.createElement('canvas');
             btn.width = 42; btn.height = 42; btn.className = "btn-ui"; btn.id = `btn-${name}`;
             btn.onclick = () => (name === "main_menu_undo" ? undo() : (name === "save" ? exportData() : setTool(name)));
             toolbar.appendChild(btn);
@@ -313,27 +174,11 @@
             valText.innerText = this.value;
         };
 
-        uiImage.src = UI_PNG; 
+        uiImage.src = UI_PNG;
         uiImage.onload = updateToolbar;
     }
 
-    function saveState() { if (history.length > 20) history.shift(); history.push({ path: JSON.parse(JSON.stringify(pathData)), mask: maskCanvas.toDataURL() }); }
-    function undo() { if (history.length === 0) return; const s = history.pop(); pathData = s.path; const i = new Image(); i.onload = () => { mCtx.clearRect(0,0,maskCanvas.width,maskCanvas.height); mCtx.drawImage(i,0,0); render(); }; i.src = s.mask; }
-    function exportData() { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(pathData, null, 4)], {type:'application/json'})); a.download = 'export.path'; a.click(); }
-    function revertAll() { if(confirm("Clear All?")) { pathData = {Nodes:[], Links:[]}; mCtx.clearRect(0,0,maskCanvas.width,maskCanvas.height); render(); } }
-
-    document.getElementById('imgInput').onchange = (e) => {
-        const r = new FileReader(); r.onload = (ev) => {
-            bgImage = new Image(); bgImage.onload = () => { maskCanvas.width = bgImage.width; maskCanvas.height = bgImage.height; render(); };
-            bgImage.src = ev.target.result;
-        }; r.readAsDataURL(e.target.files[0]);
-    };
-    document.getElementById('pathInput').onchange = async (e) => { pathData = JSON.parse(await e.target.files[0].text()); render(); };
-
-    window.addEventListener('keydown', (e) => { if (e.code === 'Space') spacePressed = true; });
-    window.addEventListener('keyup', (e) => { if(e.code === 'Space') spacePressed = false; });
-
-    initUI();
+    uiImage.onload = initUI;
 </script>
 </body>
 </html>
