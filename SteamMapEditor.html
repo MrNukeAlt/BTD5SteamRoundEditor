@@ -4,75 +4,106 @@
     <meta charset="UTF-8">
     <title>Map Editor - MrNuke Edition</title>
     <style>
-        @font-face {
-            font-family: 'Oetztype-Restored';
-            src: url('https://raw.githubusercontent.com/nebulimity/btd5-restored/main/godot/assets/fonts/oetztype.ttf') format('truetype');
-            font-display: swap;
-        }
-
         body { 
-            font-family: 'Oetztype-Restored', sans-serif; 
+            font-family: 'Segoe UI', sans-serif; 
             background: #1a1a1d; 
+            color: #efefef; 
             margin: 0; 
             overflow: hidden; 
             display: flex; 
             flex-direction: column; 
-            height: 100vh;
+            height: 100vh; 
             zoom: 0.67; 
+            -moz-transform: scale(0.67);
+            -moz-transform-origin: 0 0;
         }
 
-        .hud-window { position: absolute; background: #1e1e23; border: 2px solid #00aaff; border-radius: 8px; z-index: 100; display: flex; flex-direction: column; }
-        .hud-header { background: #00aaff; color: #000; padding: 10px; cursor: move; font-size: 14px; text-transform: uppercase; user-select: none; }
-        .hud-content { display: flex; padding: 10px; gap: 8px; background: #1e1e23; flex-direction: column; }
+        .hud-window { position: absolute; background: #1e1e23; border: 2px solid #00aaff; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); z-index: 100; display: flex; flex-direction: column; overflow: hidden; }
+        .hud-header { background: #00aaff; color: #000; padding: 8px 15px; cursor: move; font-size: 11px; font-weight: 900; text-transform: uppercase; user-select: none; flex-shrink: 0; display: flex; justify-content: space-between; }
+        .hud-content { display: flex; padding: 10px; gap: 8px; background: #1e1e23; flex-grow: 1; overflow-y: auto; }
         
-        #hud-files { top: 20px; left: 20px; width: 300px; border-color: #00ffcc; }
+        #hud-files { top: 20px; left: 20px; width: 320px; border-color: #00ffcc; }
         #hud-files .hud-header { background: #00ffcc; }
-        #hud-toolbox { top: 180px; left: 20px; width: 320px; }
+        #hud-toolbox { top: 410px; left: 20px; width: 300px; }
         
-        #brush-size-container { 
-            display: none; 
-            margin-top: 10px; 
-            padding: 10px; 
-            border-top: 1px solid #333; 
-            align-items: center; 
-            gap: 12px; 
-        }
+        .save-section { margin-top: 10px; padding-top: 10px; border-top: 2px solid #333; display: flex; flex-direction: column; gap: 5px; }
+        .btn-save { padding: 8px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; color: #000; }
+        .btn-path { background: #00ffcc; }
+        .btn-mask { background: #ffaa00; }
 
-        #hud-editor { top: 20px; left: 360px; width: 1100px; height: 800px; resize: both; overflow: hidden; }
-        #canvas-container { position: relative; width: 100%; height: 100%; background: #000; overflow: hidden; }
+        #brush-size-container { display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid #333; align-items: center; gap: 10px; }
+        .size-slider { flex-grow: 1; cursor: pointer; accent-color: #00aaff; }
+
+        #hud-editor { top: 20px; left: 360px; width: 800px; height: 600px; resize: both; overflow: auto; min-width: 400px; min-height: 300px; }
+        #canvas-container { position: relative; width: 100%; height: 100%; background: #000; overflow: hidden; cursor: crosshair; flex-grow: 1; }
+        canvas { display: block; }
         
-        .btn-ui { cursor: pointer; border-radius: 4px; background: #111; width: 42px; height: 42px; border: 1px solid #333; }
-        #palette { display: none; gap: 8px; flex-wrap: wrap; margin-top: 5px; }
+        .btn-ui { cursor: pointer; border-radius: 4px; background: #111; width: 42px; height: 42px; border: 1px solid #333; flex-shrink: 0; }
+        .btn-ui:hover { border-color: #00aaff; }
+        
+        #palette { display: none; background: #111; padding: 10px; border-radius: 4px; margin-top: 5px; gap: 8px; flex-wrap: wrap; border: 1px solid #333; }
+        .swatch-group { display: flex; flex-direction: column; align-items: center; gap: 4px; position: relative; }
+        .color-swatch { width: 30px; height: 30px; border-radius: 4px; cursor: pointer; border: 2px solid transparent; }
+        .color-swatch.active { border-color: #00ffcc; box-shadow: 0 0 8px #00ffcc; }
+        
+        .help-box { font-size: 11px; color: #ccc; line-height: 1.4; border-top: 1px solid #333; margin-top: 10px; padding-top: 10px; display: none; }
+        .help-box b { color: #00ffcc; }
+        .download-link { display: inline-block; background: #00aaff; color: #000; padding: 8px; text-decoration: none; border-radius: 4px; font-weight: bold; margin-top: 10px; width: calc(100% - 16px); text-align: center; }
+        
+        #status { font-size: 10px; color: #00ffcc; margin-top: 5px; }
     </style>
 </head>
 <body>
 
     <div id="hud-files" class="hud-window">
-        <div class="hud-header" onmousedown="startDrag(event, 'hud-files')">Asset Loader</div>
-        <div class="hud-content">
-            <label style="font-size:10px; color:#00ffcc;">MAP IMAGE</label>
+        <div class="hud-header" onmousedown="startDrag(event, 'hud-files')">Asset Manager</div>
+        <div class="hud-content" style="flex-direction: column;">
+            <label style="font-size:10px; color:#00ffcc;">LOAD BACKGROUND/MASK (.PNG)</label>
             <input type="file" id="imgInput" accept="image/png">
-            <label style="font-size:10px; color:#00ffcc; margin-top:5px;">PATH DATA (.path)</label>
+            <label style="font-size:10px; color:#00ffcc; margin-top:5px;">LOAD PATH DATA (.PATH)</label>
             <input type="file" id="pathInput" accept=".path">
+            
+            <div class="save-section">
+                <button class="btn-save btn-path" onclick="savePath()">SAVE MODIFIED .PATH</button>
+                <button class="btn-save btn-mask" onclick="saveMask()">SAVE MASK AS PNG</button>
+            </div>
+
+            <button style="background:#00aaff; color:black; border:none; margin-top:5px; cursor:pointer; padding:8px; border-radius:4px; font-weight:bold;" onclick="toggleHelp()">HOW TO WORK EDITOR</button>
+            <button style="background:#c0392b; color:white; border:none; margin-top:5px; cursor:pointer; padding:5px; border-radius:4px;" onclick="revertAll()">REVERT ALL</button>
+            
+            <div id="helpBox" class="help-box">
+                <b>Controls:</b><br>
+                • Space+Drag: Pan | Scroll: Zoom<br>
+                • Click Hold: Box Select Nodes<br>
+                • Shift+Drag: Move Map & Nodes Simultaneously<br>
+                • Arrows: Nudge Selected (Shift for 10px)<br><br>
+                <b>Tools:</b><br>
+                <a href="https://topper64.co.uk/nk/btd5/monkey-wrench" target="_blank" class="download-link">GET MONKEY WRENCH</a>
+                <br>
+                <b>Editor:</b> MrNuke
+            </div>
         </div>
     </div>
 
     <div id="hud-toolbox" class="hud-window">
         <div class="hud-header" onmousedown="startDrag(event, 'hud-toolbox')">Toolbox</div>
-        <div class="hud-content">
-            <div id="toolbar" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
-            <div id="palette"><div id="swatch-container" style="display:flex; gap:6px;"></div></div>
+        <div class="hud-content" style="flex-direction: column;">
+            <div id="toolbar" style="display:flex; flex-wrap:wrap; gap:4px;"></div>
+            <div id="palette"><div id="swatch-container" style="display:flex; gap:10px;"></div></div>
             <div id="brush-size-container">
-                <canvas id="btn-edit_mask_brush_size" width="42" height="42"></canvas>
-                <input type="range" id="sizeSlider" min="5" max="150" value="15" style="flex-grow:1;">
-                <span id="sizeValue">15</span>
+                <canvas id="btn-edit_mask_brush_size" width="42" height="42" class="btn-ui" style="cursor:default;"></canvas>
+                <input type="range" id="sizeSlider" class="size-slider" min="5" max="150" value="15">
+                <span id="sizeValue" style="font-size:10px; width:20px; color:white;">15</span>
             </div>
+            <div id="status">Tool: edit_path_select</div>
         </div>
     </div>
 
     <div id="hud-editor" class="hud-window">
         <div class="hud-header" onmousedown="startDrag(event, 'hud-editor')">Map Viewer</div>
-        <div id="canvas-container"><canvas id="editorCanvas"></canvas></div>
+        <div id="canvas-container">
+            <canvas id="editorCanvas"></canvas>
+        </div>
     </div>
 
 <script>
@@ -80,126 +111,315 @@
     const ctx = canvas.getContext('2d');
     const maskCanvas = document.createElement('canvas');
     const mCtx = maskCanvas.getContext('2d');
+    
+    // Persistent buffer for smooth mask transformation during movement
+    const moveBufferCanvas = document.createElement('canvas');
+    const bCtx = moveBufferCanvas.getContext('2d');
+    
     const UI_PNG = 'https://pub-1407f82391df4ab1951418d04be76914.r2.dev/uploads/f9ecf014-0326-4eb6-82fc-f36457acfdfe.png';
-    const uiImage = new Image();
+    const BUCKET_IDLE = 'https://pub-1407f82391df4ab1951418d04be76914.r2.dev/uploads/9ff742a7-8b09-418b-8e84-48ad78666321.png';
+    const BUCKET_ACTIVE = 'https://pub-1407f82391df4ab1951418d04be76914.r2.dev/uploads/c436a5c6-2f66-4aff-b687-00aa298b0f1d.png';
 
-    let bgImage = null, pathData = { Nodes: [] };
+    const uiImage = new Image();
+    const bucketIdleImg = new Image();
+    const bucketActiveImg = new Image();
+
+    let bgImage = null, pathData = { Nodes: [], Links: [] };
     let currentTool = "edit_path_select", activeColor = "#00FF00", brushSize = 15;
-    let scale = 1, viewX = 0, viewY = 0, isDrawing = false;
-    let lastMousePos = { x: 0, y: 0 }; // Track raw screen position for snapping
+    let scale = 1, viewX = 0, viewY = 0, spacePressed = false, shiftPressed = false;
+    let isDrawing = false, isPanning = false, isBoxSelecting = false, isMovingLayer = false;
+    let panStartX, panStartY, boxStartX, boxStartY, currentMousePos = {x:0, y:0};
+    let layerMoveOrigin = {x:0, y:0};
+    let selectedNodes = [];
 
     const UI_MAP = {
         "edit_path_select": {u: [301, 43], s: [215, 129]},
+        "edit_path_move": {u: [219, 0], s: [172, 172]},
+        "edit_path_spawn": {u: [215, 172], s: [348, 0]},
+        "edit_path_underground": {u: [391, 0], s: [258, 129]},
+        "edit_path_flag": {u: [172, 86], s: [86, 172]},        
         "edit_mask_paintbrush": {u: [129, 43], s: [133, 0]},
         "edit_mask_road_brush": {u: [172, 43], s: [176, 0]},
         "edit_mask_water": {u: [86, 86], s: [0, 170]},
+        "edit_mask_block_tower": {u: [43, 43], s: [0, 84]},
+        "edit_mask_bucket": {special: "bucket"},
         "edit_mask_brush_size": {u: [86, 43], s: [90, 0]}
     };
+
+    const PALETTES = {
+        "edit_mask_paintbrush": [{c: "#00FF00", d: "Placeable Land"}, {c: "#808080", d: "Non-Placeable Land"}],
+        "edit_mask_road_brush": [{c: "#008000", d: "Placeable Land Path"}, {c: "#000000", d: "Non-Placeable Land Path"}],
+        "edit_mask_water": [{c: "#008080", d: "Placeable Water Path"}, {c: "#000080", d: "Non-Placeable Water Path"}],
+        "edit_mask_block_tower": [{c: "#00FFFF", d: "Placeable Water"}, {c: "#000080", d: "Non-placeable Water Path"}]
+    };
+
+    function savePath() {
+        const blob = new Blob([JSON.stringify(pathData, null, 4)], {type: "application/json"});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = "map_path_modified.path"; a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    function saveMask() {
+        const a = document.createElement('a');
+        a.href = maskCanvas.toDataURL("image/png"); a.download = "mask-modified.png"; a.click();
+    }
 
     function startDrag(e, id) {
         if (e.target !== e.currentTarget) return;
         const hud = document.getElementById(id);
-        let sX = e.clientX, sY = e.clientY;
-        const move = (ev) => {
-            hud.style.top = (hud.offsetTop + (ev.clientY - sY)/0.67) + "px";
-            hud.style.left = (hud.offsetLeft + (ev.clientX - sX)/0.67) + "px";
-            sX = ev.clientX; sY = ev.clientY;
+        let hStartX = e.clientX, hStartY = e.clientY;
+        const moveHandler = (ev) => {
+            hud.style.top = (hud.offsetTop - (hStartY - ev.clientY)/0.67) + "px";
+            hud.style.left = (hud.offsetLeft - (hStartX - ev.clientX)/0.67) + "px";
+            hStartX = ev.clientX; hStartY = ev.clientY;
         };
-        const stop = () => { window.removeEventListener('mousemove', move); };
-        window.addEventListener('mousemove', move);
-        window.addEventListener('mouseup', stop);
+        const upHandler = () => { document.removeEventListener('mousemove', moveHandler); document.removeEventListener('mouseup', upHandler); };
+        document.addEventListener('mousemove', moveHandler);
+        document.addEventListener('mouseup', upHandler);
     }
 
-    function getMousePos(clientX, clientY) {
+    function toggleHelp() {
+        const box = document.getElementById('helpBox');
+        box.style.display = box.style.display === 'block' ? 'none' : 'block';
+    }
+
+    function getMousePos(e) {
         const rect = canvas.getBoundingClientRect();
-        const rawX = (clientX / 0.67) - rect.left;
-        const rawY = (clientY / 0.67) - rect.top;
-        return { worldX: (rawX - viewX) / scale, worldY: (rawY - viewY) / scale };
+        const rawX = (e.clientX / 0.67) - (rect.left / 0.67);
+        const rawY = (e.clientY / 0.67) - (rect.top / 0.67);
+        return { 
+            worldX: (rawX - viewX) / scale, 
+            worldY: (rawY - viewY) / scale, 
+            rawX, 
+            rawY 
+        };
     }
 
-    document.getElementById('pathInput').onchange = (e) => {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            try {
-                pathData = JSON.parse(ev.target.result);
-                render();
-            } catch (err) { alert("Invalid .path file."); }
-        };
-        reader.readAsText(e.target.files[0]);
-    };
+    canvas.addEventListener('mousedown', (e) => {
+        const pos = getMousePos(e);
+        if (spacePressed || e.button === 1) { 
+            isPanning = true; 
+            panStartX = pos.rawX - viewX; 
+            panStartY = pos.rawY - viewY; 
+            return; 
+        }
 
-    // Track mouse globally for tool-snapping logic
-    window.addEventListener('mousemove', (e) => {
-        lastMousePos.x = e.clientX;
-        lastMousePos.y = e.clientY;
-        if(isDrawing) paint(getMousePos(e.clientX, e.clientY));
+        if (shiftPressed) {
+            isMovingLayer = true;
+            layerMoveOrigin = { x: pos.worldX, y: pos.worldY };
+            
+            // Prepare buffer to ensure the mask doesn't get corrupted during drag
+            moveBufferCanvas.width = maskCanvas.width;
+            moveBufferCanvas.height = maskCanvas.height;
+            bCtx.clearRect(0, 0, moveBufferCanvas.width, moveBufferCanvas.height);
+            bCtx.drawImage(maskCanvas, 0, 0);
+            return;
+        }
+
+        if (currentTool.includes("mask") && currentTool !== "edit_mask_bucket") {
+            isDrawing = true; paint(pos.worldX, pos.worldY);
+        } else if (currentTool === "edit_mask_bucket") {
+            mCtx.fillStyle = activeColor; mCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
+        } else if (currentTool === "edit_path_select") {
+            let clickedNode = null;
+            pathData.Nodes.forEach(node => {
+                const pt = node.Points[0];
+                if (Math.hypot(pt[0] - pos.worldX, pt[1] - pos.worldY) < 15/scale) clickedNode = node;
+            });
+            if (clickedNode) selectedNodes = [clickedNode];
+            else { isBoxSelecting = true; boxStartX = pos.worldX; boxStartY = pos.worldY; selectedNodes = []; }
+        }
         render();
     });
 
-    canvas.addEventListener('mousedown', (e) => { 
-        if(currentTool.includes("mask")) isDrawing = true; 
-        paint(getMousePos(e.clientX, e.clientY)); 
-    });
-    
-    window.addEventListener('mouseup', () => isDrawing = false);
+    canvas.addEventListener('mousemove', (e) => {
+        const pos = getMousePos(e); currentMousePos = pos;
+        if (isPanning) { 
+            viewX = pos.rawX - panStartX; 
+            viewY = pos.rawY - panStartY; 
+        } 
+        else if (isMovingLayer) {
+            const dx = pos.worldX - layerMoveOrigin.x;
+            const dy = pos.worldY - layerMoveOrigin.y;
+            
+            // Move Path Nodes
+            pathData.Nodes.forEach(node => { 
+                node.Points.forEach(pt => { pt[0] += dx; pt[1] += dy; }); 
+            });
 
-    function paint(pos) {
-        if (!currentTool.includes("mask")) return;
-        mCtx.fillStyle = activeColor;
-        mCtx.beginPath(); mCtx.arc(pos.worldX, pos.worldY, brushSize, 0, Math.PI*2); mCtx.fill();
+            // Move Mask Content by shifting current buffer into maskCanvas
+            mCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+            mCtx.drawImage(moveBufferCanvas, dx, dy);
+            
+            // Update buffer to new position for continuous dragging
+            bCtx.clearRect(0, 0, moveBufferCanvas.width, moveBufferCanvas.height);
+            bCtx.drawImage(maskCanvas, 0, 0);
+
+            layerMoveOrigin = { x: pos.worldX, y: pos.worldY };
+        } else if (isDrawing) paint(pos.worldX, pos.worldY);
+        else if (isBoxSelecting) {
+            const left = Math.min(boxStartX, pos.worldX), top = Math.min(boxStartY, pos.worldY), right = Math.max(boxStartX, pos.worldX), bottom = Math.max(boxStartY, pos.worldY);
+            selectedNodes = pathData.Nodes.filter(n => { const p = n.Points[0]; return p[0] >= left && p[0] <= right && p[1] >= top && p[1] <= bottom; });
+        }
         render();
+    });
+
+    window.addEventListener('mouseup', () => { isDrawing = false; isPanning = false; isBoxSelecting = false; isMovingLayer = false; render(); });
+
+    canvas.addEventListener('wheel', (e) => {
+        e.preventDefault(); 
+        const pos = getMousePos(e); 
+        const delta = e.deltaY > 0 ? 1/1.1 : 1.1;
+        const newScale = Math.min(Math.max(0.05, scale * delta), 20);
+        viewX = pos.rawX - (pos.rawX - viewX) * (newScale / scale); 
+        viewY = pos.rawY - (pos.rawY - viewY) * (newScale / scale); 
+        scale = newScale;
+        render();
+    }, { passive: false });
+
+    window.addEventListener('keydown', (e) => { 
+        if (e.code === 'Space') spacePressed = true; 
+        if (e.code.startsWith('Shift')) shiftPressed = true;
+        
+        if (selectedNodes.length > 0 && e.code.startsWith('Arrow')) {
+            e.preventDefault(); 
+            const step = shiftPressed ? 10 : 1; 
+            let dx = 0, dy = 0;
+            if (e.code === 'ArrowUp') dy = -step; 
+            if (e.code === 'ArrowDown') dy = step; 
+            if (e.code === 'ArrowLeft') dx = -step; 
+            if (e.code === 'ArrowRight') dx = step;
+            
+            selectedNodes.forEach(node => { 
+                node.Points.forEach(pt => { pt[0] += dx; pt[1] += dy; }); 
+            });
+            render();
+        }
+    });
+
+    window.addEventListener('keyup', (e) => { if (e.code === 'Space') spacePressed = false; if (e.code.startsWith('Shift')) shiftPressed = false; });
+
+    function paint(x, y) {
+        if (!maskCanvas.width) return;
+        mCtx.fillStyle = activeColor; mCtx.beginPath(); mCtx.arc(x, y, brushSize, 0, Math.PI * 2); mCtx.fill();
     }
 
     function render() {
-        ctx.clearRect(0,0,canvas.width,canvas.height);
-        ctx.save(); ctx.translate(viewX, viewY); ctx.scale(scale, scale);
-        if(bgImage) ctx.drawImage(bgImage, 0, 0);
-        ctx.globalAlpha = 0.6; ctx.drawImage(maskCanvas, 0, 0); ctx.globalAlpha = 1;
+        ctx.clearRect(0, 0, canvas.width, canvas.height); 
+        ctx.save(); 
+        ctx.translate(viewX, viewY); 
+        ctx.scale(scale, scale);
+        
+        if (bgImage) { ctx.globalAlpha = 0.5; ctx.drawImage(bgImage, 0, 0); ctx.globalAlpha = 1; }
+        ctx.globalAlpha = 0.7; ctx.drawImage(maskCanvas, 0, 0); ctx.globalAlpha = 1;
+        
+        pathData.Nodes.forEach(node => {
+            if (!node.Points || node.Points.length === 0) return;
 
-        if(pathData.Nodes) {
-            pathData.Nodes.forEach(node => {
-                ctx.beginPath(); ctx.strokeStyle = "#00ffcc"; ctx.lineWidth = 2/scale;
-                node.Points.forEach((pt, i) => i === 0 ? ctx.moveTo(pt[0], pt[1]) : ctx.lineTo(pt[0], pt[1]));
-                ctx.stroke();
-                node.Points.forEach(pt => { ctx.fillStyle = "red"; ctx.beginPath(); ctx.arc(pt[0], pt[1], 4/scale, 0, 7); ctx.fill(); });
+            const isSelected = selectedNodes.includes(node);
+            let color = isSelected ? "#fff" : "#00ffcc";
+            
+            if(!isSelected) {
+                if(node.Flags === 1) color = "#00ff00"; 
+                if(node.Flags === 2) color = "#ff0000"; 
+                if(node.Flags === 5 || node.Flags === 4 || node.Flags === 3) color = "#ff00ff";
+            }
+
+            // Draw connecting lines between all internal Points
+            ctx.beginPath(); 
+            ctx.strokeStyle = color; 
+            ctx.lineWidth = (isSelected ? 5 : 3)/scale;
+            node.Points.forEach((pt, i) => {
+                if (i === 0) ctx.moveTo(pt[0], pt[1]);
+                else ctx.lineTo(pt[0], pt[1]);
+            }); 
+            ctx.stroke();
+            
+            // Render handles for ALL points in the node
+            node.Points.forEach((pt, i) => {
+                ctx.fillStyle = isSelected ? "white" : (i === 0 ? "#ff4444" : "#ffa500"); 
+                ctx.beginPath(); 
+                const radius = (i === 0 ? 6 : 4) / scale;
+                ctx.arc(pt[0], pt[1], radius, 0, Math.PI * 2); 
+                ctx.fill();
             });
+
+            // Flag Label at Node Start
+            const firstPt = node.Points[0];
+            ctx.fillStyle = "rgba(0,0,0,0.8)"; 
+            ctx.font = `bold ${11/scale}px Arial`; 
+            const flagText = `F:${node.Flags || 0}`; 
+            const txtW = ctx.measureText(flagText).width;
+            ctx.fillRect(firstPt[0] + 8/scale, firstPt[1] - 15/scale, txtW + 6/scale, 14/scale);
+            ctx.fillStyle = isSelected ? "#fff" : "#00ffcc"; 
+            ctx.fillText(flagText, firstPt[0] + 11/scale, firstPt[1] - 4/scale);
+        });
+
+        if (isBoxSelecting) {
+            ctx.strokeStyle = "#00aaff"; ctx.lineWidth = 2/scale; ctx.setLineDash([5/scale, 5/scale]);
+            ctx.strokeRect(boxStartX, boxStartY, currentMousePos.worldX - boxStartX, currentMousePos.worldY - boxStartY); ctx.setLineDash([]);
         }
         ctx.restore();
     }
 
     function setTool(name) {
-        currentTool = name;
-        const isMask = name.includes("mask");
-        document.getElementById('brush-size-container').style.display = isMask ? 'flex' : 'none';
-        
-        // AUTOMATIC SNAP: If it's a mask brush, render it at cursor immediately
-        if (isMask) {
-            paint(getMousePos(lastMousePos.x, lastMousePos.y));
-        }
-
-        updateToolbar();
+        currentTool = name; const isMask = name.includes("mask"), isBucket = name === "edit_mask_bucket";
+        document.getElementById('brush-size-container').style.display = (isMask && !isBucket) ? 'flex' : 'none';
+        const pal = document.getElementById('palette'), cont = document.getElementById('swatch-container'); let targetPalette = PALETTES[name];
+        if (isBucket) pal.style.display = 'none';
+        else if (targetPalette) {
+            pal.style.display = 'flex'; cont.innerHTML = '';
+            targetPalette.forEach(item => {
+                const group = document.createElement('div'); group.className = 'swatch-group';
+                const sw = document.createElement('div'); sw.className = 'color-swatch' + (activeColor.toLowerCase() === item.c.toLowerCase() ? ' active' : '');
+                sw.style.background = item.c; sw.onclick = () => { activeColor = item.c; setTool(name); };
+                group.appendChild(sw); cont.appendChild(group);
+            });
+        } else pal.style.display = 'none';
+        updateToolbar(); 
+        document.getElementById('status').textContent = `Tool: ${name}`;
     }
 
     function updateToolbar() {
-        Object.entries(UI_MAP).forEach(([name, pos]) => {
-            const btn = document.getElementById(`btn-${name}`);
-            if(!btn) return;
-            const bCtx = btn.getContext('2d');
-            const isSelected = (currentTool === name) || (name === "edit_mask_brush_size" && currentTool.includes("mask"));
-            const coords = isSelected ? pos.s : pos.u;
-            bCtx.clearRect(0,0,42,42);
-            bCtx.drawImage(uiImage, coords[0], coords[1], 42, 42, 0, 0, 42, 42);
+        Object.entries(UI_MAP).forEach(([name, data]) => {
+            const btn = document.getElementById(`btn-${name}`); if(!btn) return;
+            const bCtxToolbar = btn.getContext('2d'); bCtxToolbar.clearRect(0,0,42,42);
+            if(data.special === "bucket") bCtxToolbar.drawImage(currentTool === "edit_mask_bucket" ? bucketActiveImg : bucketIdleImg, 0, 0, 42, 42);
+            else { const isSelected = (currentTool === name) || (name === "edit_mask_brush_size" && currentTool.includes("mask")); const coords = isSelected ? data.s : data.u; bCtxToolbar.drawImage(uiImage, coords[0], coords[1], 42, 42, 0, 0, 42, 42); }
         });
     }
 
     function initUI() {
         const toolbar = document.getElementById('toolbar');
-        Object.keys(UI_MAP).forEach(name => {
-            if(name === "edit_mask_brush_size") return;
-            const btn = document.createElement('canvas'); btn.width = 42; btn.height = 42; btn.className = "btn-ui"; btn.id = `btn-${name}`;
-            btn.onclick = () => setTool(name); toolbar.appendChild(btn);
-        });
-        uiImage.src = UI_PNG; uiImage.onload = () => { updateToolbar(); setTool("edit_path_select"); };
+        Object.keys(UI_MAP).forEach(name => { if (name === "edit_mask_brush_size") return; const btn = document.createElement('canvas'); btn.width = 42; btn.height = 42; btn.className = "btn-ui"; btn.id = `btn-${name}`; btn.onclick = () => setTool(name); toolbar.appendChild(btn); });
+        document.getElementById('sizeSlider').oninput = function() { brushSize = parseInt(this.value); document.getElementById('sizeValue').innerText = this.value; };
+        uiImage.src = UI_PNG; bucketIdleImg.src = BUCKET_IDLE; bucketActiveImg.src = BUCKET_ACTIVE;
+        uiImage.onload = () => { updateToolbar(); setTool("edit_path_select"); };
+    }
+
+    document.getElementById('imgInput').onchange = (e) => {
+        const r = new FileReader(); r.onload = (ev) => {
+            bgImage = new Image(); bgImage.onload = () => { 
+                maskCanvas.width = bgImage.width; maskCanvas.height = bgImage.height;
+                canvas.width = canvas.parentElement.clientWidth; canvas.height = canvas.parentElement.clientHeight; render(); 
+            };
+            bgImage.src = ev.target.result;
+        }; r.readAsDataURL(e.target.files[0]);
+    };
+
+    document.getElementById('pathInput').onchange = (e) => {
+        const file = e.target.files[0]; if (!file) return;
+        const r = new FileReader(); r.onload = (ev) => { pathData = JSON.parse(ev.target.result); render(); }; r.readAsText(file);
+    };
+
+    function revertAll() { if(confirm("Clear everything?")) { mCtx.clearRect(0,0,maskCanvas.width,maskCanvas.height); pathData.Nodes = []; render(); } }
+
+    initUI();
+</script>
+</body>
+</html>        uiImage.src = UI_PNG; uiImage.onload = () => { updateToolbar(); setTool("edit_path_select"); };
     }
 
     document.getElementById('sizeSlider').oninput = function() { 
