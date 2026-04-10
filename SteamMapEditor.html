@@ -13,6 +13,7 @@
             display: flex; 
             flex-direction: column; 
             height: 100vh; 
+            /* Note: Zoom can cause coordinate offsets; handled in JS */
             zoom: 0.67; 
             -moz-transform: scale(0.67);
             -moz-transform-origin: 0 0;
@@ -36,7 +37,7 @@
 
         #hud-editor { top: 20px; left: 360px; width: 800px; height: 600px; resize: both; overflow: auto; min-width: 400px; min-height: 300px; }
         #canvas-container { position: relative; width: 100%; height: 100%; background: #000; overflow: hidden; cursor: crosshair; flex-grow: 1; }
-        canvas { display: block; }
+        canvas { display: block; width: 100%; height: 100%; }
         
         .btn-ui { cursor: pointer; border-radius: 4px; background: #111; width: 42px; height: 42px; border: 1px solid #333; flex-shrink: 0; }
         .btn-ui:hover { border-color: #00aaff; }
@@ -112,7 +113,6 @@
     const maskCanvas = document.createElement('canvas');
     const mCtx = maskCanvas.getContext('2d');
     
-    // Persistent buffer for smooth mask transformation during movement
     const moveBufferCanvas = document.createElement('canvas');
     const bCtx = moveBufferCanvas.getContext('2d');
     
@@ -171,8 +171,9 @@
         const hud = document.getElementById(id);
         let hStartX = e.clientX, hStartY = e.clientY;
         const moveHandler = (ev) => {
-            hud.style.top = (hud.offsetTop - (hStartY - ev.clientY)/0.67) + "px";
-            hud.style.left = (hud.offsetLeft - (hStartX - ev.clientX)/0.67) + "px";
+            // Correct for 0.67 zoom in drag logic
+            hud.style.top = (hud.offsetTop + (ev.clientY - hStartY) / 0.67) + "px";
+            hud.style.left = (hud.offsetLeft + (ev.clientX - hStartX) / 0.67) + "px";
             hStartX = ev.clientX; hStartY = ev.clientY;
         };
         const upHandler = () => { document.removeEventListener('mousemove', moveHandler); document.removeEventListener('mouseup', upHandler); };
@@ -187,6 +188,7 @@
 
     function getMousePos(e) {
         const rect = canvas.getBoundingClientRect();
+        // Crucial Fix: Adjust client coordinates by 0.67 zoom factor
         const rawX = (e.clientX / 0.67) - (rect.left / 0.67);
         const rawY = (e.clientY / 0.67) - (rect.top / 0.67);
         return { 
@@ -290,12 +292,22 @@
     }
 
     function render() {
+        // Essential: Resize canvas to container match to avoid distortion
+        canvas.width = canvas.parentElement.clientWidth;
+        canvas.height = canvas.parentElement.clientHeight;
+
         ctx.clearRect(0, 0, canvas.width, canvas.height); 
         ctx.save(); 
         ctx.translate(viewX, viewY); 
         ctx.scale(scale, scale);
+
+        // 1. Draw Background First
         if (bgImage) { ctx.globalAlpha = 0.5; ctx.drawImage(bgImage, 0, 0); ctx.globalAlpha = 1; }
+        
+        // 2. Draw Mask Overlay
         ctx.globalAlpha = 0.7; ctx.drawImage(maskCanvas, 0, 0); ctx.globalAlpha = 1;
+        
+        // 3. Draw Path Nodes
         pathData.Nodes.forEach(node => {
             if (!node.Points || node.Points.length === 0) return;
             const isSelected = selectedNodes.includes(node);
@@ -366,14 +378,26 @@
         uiImage.src = UI_PNG; 
         bucketIdleImg.src = BUCKET_IDLE; 
         bucketActiveImg.src = BUCKET_ACTIVE;
-        uiImage.onload = () => { updateToolbar(); setTool("edit_path_select"); };
+
+        // Ensure assets are loaded
+        let loadedCount = 0;
+        const checkLoaded = () => {
+            loadedCount++;
+            if(loadedCount === 3) {
+                updateToolbar(); 
+                setTool("edit_path_select");
+            }
+        };
+        uiImage.onload = checkLoaded;
+        bucketIdleImg.onload = checkLoaded;
+        bucketActiveImg.onload = checkLoaded;
     }
 
     document.getElementById('imgInput').onchange = (e) => {
         const r = new FileReader(); r.onload = (ev) => {
             bgImage = new Image(); bgImage.onload = () => { 
                 maskCanvas.width = bgImage.width; maskCanvas.height = bgImage.height;
-                canvas.width = canvas.parentElement.clientWidth; canvas.height = canvas.parentElement.clientHeight; render(); 
+                render(); 
             };
             bgImage.src = ev.target.result;
         }; r.readAsDataURL(e.target.files[0]);
@@ -387,6 +411,7 @@
     function revertAll() { if(confirm("Clear everything?")) { mCtx.clearRect(0,0,maskCanvas.width,maskCanvas.height); pathData.Nodes = []; render(); } }
 
     initUI();
+    window.addEventListener('resize', render);
 </script>
 </body>
 </html>
