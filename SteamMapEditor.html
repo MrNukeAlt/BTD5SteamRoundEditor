@@ -13,7 +13,6 @@
             display: flex; 
             flex-direction: column; 
             height: 100vh; 
-            /* Note: Zoom affects getBoundingClientRect, handled in JS */
             zoom: 0.67; 
             -moz-transform: scale(0.67);
             -moz-transform-origin: 0 0;
@@ -26,11 +25,17 @@
         #hud-files { top: 20px; left: 20px; width: 320px; border-color: #00ffcc; }
         #hud-files .hud-header { background: #00ffcc; }
         #hud-toolbox { top: 410px; left: 20px; width: 300px; }
-        
+        #hud-help { top: 20px; left: 1180px; width: 350px; border-color: #ff00ff; }
+        #hud-help .hud-header { background: #ff00ff; }
+
         .save-section { margin-top: 10px; padding-top: 10px; border-top: 2px solid #333; display: flex; flex-direction: column; gap: 5px; }
         .btn-save { padding: 8px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; color: #000; }
         .btn-path { background: #00ffcc; }
         .btn-mask { background: #ffaa00; }
+
+        .help-list { font-size: 12px; line-height: 1.4; color: #ccc; }
+        .flag-item { margin-bottom: 5px; display: flex; align-items: center; gap: 10px; }
+        .flag-id { background: #333; padding: 2px 6px; border-radius: 3px; color: #ff00ff; font-weight: bold; font-family: monospace; }
 
         #brush-size-container { display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid #333; align-items: center; gap: 10px; }
         .size-slider { flex-grow: 1; cursor: pointer; accent-color: #00aaff; }
@@ -47,11 +52,10 @@
         .color-swatch { width: 30px; height: 30px; border-radius: 4px; cursor: pointer; border: 2px solid transparent; }
         .color-swatch.active { border-color: #00ffcc; box-shadow: 0 0 8px #00ffcc; }
         
-        .help-box { font-size: 11px; color: #ccc; line-height: 1.4; border-top: 1px solid #333; margin-top: 10px; padding-top: 10px; display: none; }
-        .help-box b { color: #00ffcc; }
-        .download-link { display: inline-block; background: #00aaff; color: #000; padding: 8px; text-decoration: none; border-radius: 4px; font-weight: bold; margin-top: 10px; width: calc(100% - 16px); text-align: center; }
-        
         #status { font-size: 10px; color: #00ffcc; margin-top: 5px; }
+        .credits { margin-top: 15px; font-size: 10px; color: #666; text-align: center; border-top: 1px solid #333; padding-top: 5px; }
+        a { color: #00aaff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -68,20 +72,34 @@
                 <button class="btn-save btn-path" onclick="savePath()">SAVE MODIFIED .PATH</button>
                 <button class="btn-save btn-mask" onclick="saveMask()">SAVE MASK AS PNG</button>
             </div>
-
-            <button style="background:#00aaff; color:black; border:none; margin-top:5px; cursor:pointer; padding:8px; border-radius:4px; font-weight:bold;" onclick="toggleHelp()">HOW TO WORK EDITOR</button>
             <button style="background:#c0392b; color:white; border:none; margin-top:5px; cursor:pointer; padding:5px; border-radius:4px;" onclick="revertAll()">REVERT ALL</button>
             
-            <div id="helpBox" class="help-box">
-                <b>Controls:</b><br>
-                • Space+Drag: Pan | Scroll: Zoom<br>
-                • Click Hold: Box Select Nodes<br>
-                • Shift+Drag: Move Map & Nodes Simultaneously<br>
-                • Arrows: Nudge Selected (Shift for 10px)<br><br>
-                <b>Tools:</b><br>
-                <a href="https://topper64.co.uk/nk/btd5/monkey-wrench" target="_blank" class="download-link">GET MONKEY WRENCH</a>
-                <br>
-                <b>Editor:</b> MrNuke
+            <div class="credits">
+                Created by <b>MrNuke</b><br>
+                Assets managed via <a href="https://topper64.co.uk/nk/btd5/monkey_wrench.exe" target="_blank">Monkey Wrench</a>
+            </div>
+        </div>
+    </div>
+
+    <div id="hud-help" class="hud-window">
+        <div class="hud-header" onmousedown="startDrag(event, 'hud-help')">Editor Manual & Flags</div>
+        <div class="hud-content" style="flex-direction: column;">
+            <div class="help-list">
+                <b style="color:#ff00ff">NODE FLAGS REFERENCE</b><br>
+                <div class="flag-item"><span class="flag-id">0</span> Standard Path/Walkable</div>
+                <div class="flag-item"><span class="flag-id">1</span> Start/Entry Segment</div>
+                <div class="flag-item"><span class="flag-id">2</span> End/Exit Segment</div>
+                <div class="flag-item"><span class="flag-id">4</span> Straight Connection/Jump</div>
+                <div class="flag-item"><span class="flag-id">3/5</span> Special Traversal</div>
+                
+                <hr style="border:0; border-top:1px solid #333; margin:10px 0;">
+                
+                <b style="color:#00ffcc">GLOBAL CONTROLS</b><br>
+                • <b>Shift + Drag:</b> Move <u>Everything</u> (BG, Mask, & Nodes).<br>
+                • <b>Point Select:</b> Select tool + Drag over Points.<br>
+                • <b>Multi-Move:</b> Select points, then Move tool to drag.<br>
+                • <b>Undo:</b> <kbd>Ctrl+Z</kbd> or click Arrow icon.<br>
+                • <b>Navigation:</b> Middle-click or Space+Drag.
             </div>
         </div>
     </div>
@@ -112,7 +130,6 @@
     const ctx = canvas.getContext('2d');
     const maskCanvas = document.createElement('canvas');
     const mCtx = maskCanvas.getContext('2d');
-    
     const moveBufferCanvas = document.createElement('canvas');
     const bCtx = moveBufferCanvas.getContext('2d');
     
@@ -125,14 +142,48 @@
     const bucketActiveImg = new Image();
 
     let bgImage = null, pathData = { Nodes: [], Links: [] };
+    let bgOffsetX = 0, bgOffsetY = 0; // Track background position
     let currentTool = "edit_path_select", activeColor = "#00FF00", brushSize = 15;
     let scale = 1, viewX = 0, viewY = 0, spacePressed = false, shiftPressed = false;
-    let isDrawing = false, isPanning = false, isBoxSelecting = false, isMovingLayer = false;
+    let isDrawing = false, isPanning = false, isBoxSelecting = false, isMovingLayer = false, isDraggingNodes = false;
     let panStartX, panStartY, boxStartX, boxStartY, currentMousePos = {x:0, y:0};
-    let layerMoveOrigin = {x:0, y:0};
-    let selectedNodes = [];
+    
+    let selectedPoints = [];
+    let dragOriginWorld = {x:0, y:0};
+    let maskDragOffsetX = 0, maskDragOffsetY = 0;
+
+    let historyStack = [];
+    const MAX_HISTORY = 50;
+
+    function saveState() {
+        historyStack.push({
+            path: JSON.stringify(pathData),
+            mask: maskCanvas.toDataURL(),
+            bgX: bgOffsetX,
+            bgY: bgOffsetY
+        });
+        if (historyStack.length > MAX_HISTORY) historyStack.shift();
+    }
+
+    function undo() {
+        if (historyStack.length > 0) {
+            let state = historyStack.pop();
+            pathData = JSON.parse(state.path);
+            bgOffsetX = state.bgX;
+            bgOffsetY = state.bgY;
+            let img = new Image();
+            img.onload = () => {
+                mCtx.clearRect(0,0,maskCanvas.width, maskCanvas.height);
+                mCtx.drawImage(img, 0, 0);
+                render();
+            };
+            img.src = state.mask;
+            selectedPoints = [];
+        }
+    }
 
     const UI_MAP = {
+        "main_menu_undo": {u: [43, 258], s: [86, 215]},
         "edit_path_select": {u: [301, 43], s: [215, 129]},
         "edit_path_move": {u: [219, 0], s: [172, 172]},
         "edit_path_spawn": {u: [215, 172], s: [348, 0]},
@@ -171,7 +222,6 @@
         const hud = document.getElementById(id);
         let hStartX = e.clientX, hStartY = e.clientY;
         const moveHandler = (ev) => {
-            // Adjusted for 0.67 zoom factor
             hud.style.top = (hud.offsetTop + (ev.clientY - hStartY) / 0.67) + "px";
             hud.style.left = (hud.offsetLeft + (ev.clientX - hStartX) / 0.67) + "px";
             hStartX = ev.clientX; hStartY = ev.clientY;
@@ -181,55 +231,85 @@
         document.addEventListener('mouseup', upHandler);
     }
 
-    function toggleHelp() {
-        const box = document.getElementById('helpBox');
-        box.style.display = box.style.display === 'block' ? 'none' : 'block';
-    }
-
     function getMousePos(e) {
         const rect = canvas.getBoundingClientRect();
-        // Crucial fix for 0.67 zoom coordinate mismatch
         const rawX = (e.clientX / 0.67) - (rect.left / 0.67);
         const rawY = (e.clientY / 0.67) - (rect.top / 0.67);
-        return { 
-            worldX: (rawX - viewX) / scale, 
-            worldY: (rawY - viewY) / scale, 
-            rawX, 
-            rawY 
-        };
+        return { worldX: (rawX - viewX) / scale, worldY: (rawY - viewY) / scale, rawX, rawY };
     }
 
     canvas.addEventListener('mousedown', (e) => {
         const pos = getMousePos(e);
         if (spacePressed || e.button === 1) { 
-            isPanning = true; 
-            panStartX = pos.rawX - viewX; 
-            panStartY = pos.rawY - viewY; 
-            return; 
+            isPanning = true; panStartX = pos.rawX - viewX; panStartY = pos.rawY - viewY; return; 
         }
 
         if (shiftPressed) {
+            saveState();
             isMovingLayer = true;
-            layerMoveOrigin = { x: pos.worldX, y: pos.worldY };
+            dragOriginWorld = { x: pos.worldX, y: pos.worldY };
             moveBufferCanvas.width = maskCanvas.width;
             moveBufferCanvas.height = maskCanvas.height;
             bCtx.clearRect(0, 0, moveBufferCanvas.width, moveBufferCanvas.height);
             bCtx.drawImage(maskCanvas, 0, 0);
+            maskDragOffsetX = 0; maskDragOffsetY = 0;
             return;
         }
 
         if (currentTool.includes("mask") && currentTool !== "edit_mask_bucket") {
+            saveState();
             isDrawing = true; paint(pos.worldX, pos.worldY);
         } else if (currentTool === "edit_mask_bucket") {
+            saveState();
             mCtx.fillStyle = activeColor; mCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
-        } else if (currentTool === "edit_path_select") {
-            let clickedNode = null;
+        } 
+        else if (currentTool === "edit_path_select" || currentTool === "edit_path_move") {
+            let foundNode = null; let foundIdx = -1;
             pathData.Nodes.forEach(node => {
-                const pt = node.Points[0];
-                if (Math.hypot(pt[0] - pos.worldX, pt[1] - pos.worldY) < 15/scale) clickedNode = node;
+                node.Points.forEach((pt, idx) => {
+                    if (Math.hypot(pt[0] - pos.worldX, pt[1] - pos.worldY) < 15/scale) {
+                        foundNode = node; foundIdx = idx;
+                    }
+                });
             });
-            if (clickedNode) selectedNodes = [clickedNode];
-            else { isBoxSelecting = true; boxStartX = pos.worldX; boxStartY = pos.worldY; selectedNodes = []; }
+
+            if (foundNode) {
+                const alreadySelected = selectedPoints.some(p => p.node === foundNode && p.idx === foundIdx);
+                if (!alreadySelected) selectedPoints = [{node: foundNode, idx: foundIdx}];
+                if (currentTool === "edit_path_move") {
+                    saveState();
+                    isDraggingNodes = true;
+                    dragOriginWorld = { x: pos.worldX, y: pos.worldY };
+                }
+            } else if (currentTool === "edit_path_select") {
+                isBoxSelecting = true; boxStartX = pos.worldX; boxStartY = pos.worldY; selectedPoints = []; 
+            }
+        } 
+        else if (currentTool === "edit_path_spawn") {
+            saveState();
+            if (selectedPoints.length === 1) {
+                const node = selectedPoints[0].node;
+                node.Points.push([Math.round(pos.worldX), Math.round(pos.worldY)]);
+                selectedPoints = [{node: node, idx: node.Points.length - 1}];
+            } else {
+                const newNode = { Flags: 0, Points: [[Math.round(pos.worldX), Math.round(pos.worldY)]] };
+                pathData.Nodes.push(newNode);
+                selectedPoints = [{node: newNode, idx: 0}];
+            }
+        }
+        else if (currentTool === "edit_path_underground" || currentTool === "edit_path_flag") {
+            const clickedNode = pathData.Nodes.find(node => 
+                Math.hypot(node.Points[0][0] - pos.worldX, node.Points[0][1] - pos.worldY) < 20/scale
+            );
+            if (clickedNode) {
+                saveState();
+                if (currentTool === "edit_path_underground") {
+                    clickedNode.Flags = ((clickedNode.Flags || 0) + 1) % 6;
+                } else {
+                    const val = prompt("Enter Flag Value (0-5):\n0: Standard\n1: Start\n2: End\n4: Jump\n3/5: Special", clickedNode.Flags);
+                    if (val !== null) clickedNode.Flags = parseInt(val) || 0;
+                }
+            }
         }
         render();
     });
@@ -237,27 +317,49 @@
     canvas.addEventListener('mousemove', (e) => {
         const pos = getMousePos(e); currentMousePos = pos;
         if (isPanning) { 
-            viewX = pos.rawX - panStartX; 
-            viewY = pos.rawY - panStartY; 
+            viewX = pos.rawX - panStartX; viewY = pos.rawY - panStartY; 
         } 
         else if (isMovingLayer) {
-            const dx = pos.worldX - layerMoveOrigin.x;
-            const dy = pos.worldY - layerMoveOrigin.y;
+            const dx = pos.worldX - dragOriginWorld.x; 
+            const dy = pos.worldY - dragOriginWorld.y;
+            
+            // 1. Move Background
+            bgOffsetX += dx;
+            bgOffsetY += dy;
+
+            // 2. Move All Path Nodes
             pathData.Nodes.forEach(node => { node.Points.forEach(pt => { pt[0] += dx; pt[1] += dy; }); });
+            
+            // 3. Move Mask via Buffer
+            maskDragOffsetX += dx; maskDragOffsetY += dy;
             mCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
-            mCtx.drawImage(moveBufferCanvas, dx, dy);
-            bCtx.clearRect(0, 0, moveBufferCanvas.width, moveBufferCanvas.height);
-            bCtx.drawImage(maskCanvas, 0, 0);
-            layerMoveOrigin = { x: pos.worldX, y: pos.worldY };
-        } else if (isDrawing) paint(pos.worldX, pos.worldY);
+            mCtx.drawImage(moveBufferCanvas, maskDragOffsetX, maskDragOffsetY);
+            
+            dragOriginWorld = { x: pos.worldX, y: pos.worldY };
+        } 
+        else if (isDraggingNodes && selectedPoints.length > 0) {
+            const dx = pos.worldX - dragOriginWorld.x; const dy = pos.worldY - dragOriginWorld.y;
+            selectedPoints.forEach(sp => { const pt = sp.node.Points[sp.idx]; pt[0] += dx; pt[1] += dy; });
+            dragOriginWorld = { x: pos.worldX, y: pos.worldY };
+        } 
+        else if (isDrawing) paint(pos.worldX, pos.worldY);
         else if (isBoxSelecting) {
-            const left = Math.min(boxStartX, pos.worldX), top = Math.min(boxStartY, pos.worldY), right = Math.max(boxStartX, pos.worldX), bottom = Math.max(boxStartY, pos.worldY);
-            selectedNodes = pathData.Nodes.filter(n => { const p = n.Points[0]; return p[0] >= left && p[0] <= right && p[1] >= top && p[1] <= bottom; });
+            const left = Math.min(boxStartX, pos.worldX), top = Math.min(boxStartY, pos.worldY);
+            const right = Math.max(boxStartX, pos.worldX), bottom = Math.max(boxStartY, pos.worldY);
+            selectedPoints = [];
+            pathData.Nodes.forEach(node => {
+                node.Points.forEach((pt, idx) => {
+                    if (pt[0] >= left && pt[0] <= right && pt[1] >= top && pt[1] <= bottom) selectedPoints.push({node, idx});
+                });
+            });
         }
         render();
     });
 
-    window.addEventListener('mouseup', () => { isDrawing = false; isPanning = false; isBoxSelecting = false; isMovingLayer = false; render(); });
+    window.addEventListener('mouseup', () => { 
+        isDrawing = false; isPanning = false; isBoxSelecting = false; isMovingLayer = false; isDraggingNodes = false;
+        render(); 
+    });
 
     canvas.addEventListener('wheel', (e) => {
         e.preventDefault(); 
@@ -273,14 +375,22 @@
     window.addEventListener('keydown', (e) => { 
         if (e.code === 'Space') spacePressed = true; 
         if (e.code.startsWith('Shift')) shiftPressed = true;
-        if (selectedNodes.length > 0 && e.code.startsWith('Arrow')) {
-            e.preventDefault(); 
-            const step = shiftPressed ? 10 : 1; 
-            let dx = 0, dy = 0;
+        if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undo(); }
+        if (selectedPoints.length > 0 && e.code.startsWith('Arrow')) {
+            saveState(); e.preventDefault(); 
+            const step = shiftPressed ? 10 : 1; let dx = 0, dy = 0;
             if (e.code === 'ArrowUp') dy = -step; if (e.code === 'ArrowDown') dy = step; 
             if (e.code === 'ArrowLeft') dx = -step; if (e.code === 'ArrowRight') dx = step;
-            selectedNodes.forEach(node => { node.Points.forEach(pt => { pt[0] += dx; pt[1] += dy; }); });
+            selectedPoints.forEach(sp => { const pt = sp.node.Points[sp.idx]; pt[0] += dx; pt[1] += dy; });
             render();
+        }
+        if (e.code === 'Delete' || e.code === 'Backspace') {
+            if (selectedPoints.length > 0) {
+                saveState();
+                selectedPoints.forEach(sp => { sp.node.Points.splice(sp.idx, 1); });
+                pathData.Nodes = pathData.Nodes.filter(n => n.Points.length > 0);
+                selectedPoints = []; render();
+            }
         }
     });
 
@@ -292,39 +402,45 @@
     }
 
     function render() {
-        // Fix: Update canvas internal resolution to match display size
-        canvas.width = canvas.parentElement.clientWidth;
-        canvas.height = canvas.parentElement.clientHeight;
-
+        if (canvas.width !== canvas.parentElement.clientWidth || canvas.height !== canvas.parentElement.clientHeight) {
+            canvas.width = canvas.parentElement.clientWidth; canvas.height = canvas.parentElement.clientHeight;
+        }
         ctx.clearRect(0, 0, canvas.width, canvas.height); 
         ctx.save(); 
-        ctx.translate(viewX, viewY); 
-        ctx.scale(scale, scale);
+        ctx.translate(viewX, viewY); ctx.scale(scale, scale);
         
-        if (bgImage) { ctx.globalAlpha = 0.5; ctx.drawImage(bgImage, 0, 0); ctx.globalAlpha = 1; }
+        // Draw Background with proper offsets
+        if (bgImage) { 
+            ctx.globalAlpha = 0.5; 
+            ctx.drawImage(bgImage, bgOffsetX, bgOffsetY); 
+            ctx.globalAlpha = 1; 
+        }
+        
+        // Draw Mask
         ctx.globalAlpha = 0.7; ctx.drawImage(maskCanvas, 0, 0); ctx.globalAlpha = 1;
         
         pathData.Nodes.forEach(node => {
-            if (!node.Points || node.Points.length === 0) return;
-            const isSelected = selectedNodes.includes(node);
-            let color = isSelected ? "#fff" : "#00ffcc";
-            if(!isSelected) {
-                if(node.Flags === 1) color = "#00ff00"; 
-                if(node.Flags === 2) color = "#ff0000"; 
-                if(node.Flags === 5 || node.Flags === 4 || node.Flags === 3) color = "#ff00ff";
-            }
-            ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = (isSelected ? 5 : 3)/scale;
+            let color = "#00ffcc";
+            if(node.Flags === 1) color = "#00ff00"; if(node.Flags === 2) color = "#ff0000"; 
+            if(node.Flags === 5 || node.Flags === 4 || node.Flags === 3) color = "#ff00ff";
+            
+            ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = 3/scale;
             node.Points.forEach((pt, i) => i === 0 ? ctx.moveTo(pt[0], pt[1]) : ctx.lineTo(pt[0], pt[1])); ctx.stroke();
+            
             node.Points.forEach((pt, i) => {
-                ctx.fillStyle = isSelected ? "white" : (i === 0 ? "#ff4444" : "#ffa500"); 
-                ctx.beginPath(); ctx.arc(pt[0], pt[1], (i === 0 ? 6 : 4)/scale, 0, Math.PI * 2); ctx.fill();
+                const isSelected = selectedPoints.some(sp => sp.node === node && sp.idx === i);
+                ctx.fillStyle = isSelected ? "#00ffcc" : (i === 0 ? "#ff4444" : "#ffa500"); 
+                ctx.beginPath(); ctx.arc(pt[0], pt[1], (isSelected ? 7 : (i === 0 ? 6 : 4))/scale, 0, Math.PI * 2); ctx.fill();
+                if(isSelected) { ctx.strokeStyle = "white"; ctx.lineWidth = 2/scale; ctx.stroke(); }
             });
+
             const firstPt = node.Points[0];
             ctx.fillStyle = "rgba(0,0,0,0.8)"; ctx.font = `bold ${11/scale}px Arial`; 
             const flagText = `F:${node.Flags || 0}`; const txtW = ctx.measureText(flagText).width;
             ctx.fillRect(firstPt[0] + 8/scale, firstPt[1] - 15/scale, txtW + 6/scale, 14/scale);
-            ctx.fillStyle = isSelected ? "#fff" : "#00ffcc"; ctx.fillText(flagText, firstPt[0] + 11/scale, firstPt[1] - 4/scale);
+            ctx.fillStyle = "#00ffcc"; ctx.fillText(flagText, firstPt[0] + 11/scale, firstPt[1] - 4/scale);
         });
+
         if (isBoxSelecting) {
             ctx.strokeStyle = "#00aaff"; ctx.lineWidth = 2/scale; ctx.setLineDash([5/scale, 5/scale]);
             ctx.strokeRect(boxStartX, boxStartY, currentMousePos.worldX - boxStartX, currentMousePos.worldY - boxStartY); ctx.setLineDash([]);
@@ -355,47 +471,48 @@
             const btn = document.getElementById(`btn-${name}`); if(!btn) return;
             const bCtxToolbar = btn.getContext('2d'); bCtxToolbar.clearRect(0,0,42,42);
             if(data.special === "bucket") bCtxToolbar.drawImage(currentTool === "edit_mask_bucket" ? bucketActiveImg : bucketIdleImg, 0, 0, 42, 42);
-            else { const isSelected = (currentTool === name) || (name === "edit_mask_brush_size" && currentTool.includes("mask")); const coords = isSelected ? data.s : data.u; bCtxToolbar.drawImage(uiImage, coords[0], coords[1], 42, 42, 0, 0, 42, 42); }
+            else { 
+                const isSelected = (currentTool === name) || (name === "edit_mask_brush_size" && currentTool.includes("mask")); 
+                const coords = isSelected ? data.s : data.u; 
+                bCtxToolbar.drawImage(uiImage, coords[0], coords[1], 42, 42, 0, 0, 42, 42); 
+            }
         });
     }
 
     function initUI() {
         const toolbar = document.getElementById('toolbar');
-        Object.keys(UI_MAP).forEach(name => { if (name === "edit_mask_brush_size") return; const btn = document.createElement('canvas'); btn.width = 42; btn.height = 42; btn.className = "btn-ui"; btn.id = `btn-${name}`; btn.onclick = () => setTool(name); toolbar.appendChild(btn); });
+        const undoBtn = document.createElement('canvas'); undoBtn.width = 42; undoBtn.height = 42; 
+        undoBtn.className = "btn-ui"; undoBtn.id = `btn-main_menu_undo`; undoBtn.onclick = undo;
+        toolbar.appendChild(undoBtn);
+        Object.keys(UI_MAP).forEach(name => { 
+            if (name === "edit_mask_brush_size" || name === "main_menu_undo") return; 
+            const btn = document.createElement('canvas'); btn.width = 42; btn.height = 42; btn.className = "btn-ui"; btn.id = `btn-${name}`; btn.onclick = () => setTool(name); toolbar.appendChild(btn); 
+        });
         document.getElementById('sizeSlider').oninput = function() { brushSize = parseInt(this.value); document.getElementById('sizeValue').innerText = this.value; };
-        
-        // Asset loading
         uiImage.src = UI_PNG; bucketIdleImg.src = BUCKET_IDLE; bucketActiveImg.src = BUCKET_ACTIVE;
-        
         let loaded = 0;
-        const onAssetLoad = () => {
-            loaded++;
-            if(loaded >= 3) {
-                updateToolbar(); 
-                setTool("edit_path_select");
-            }
-        };
-        uiImage.onload = onAssetLoad;
-        bucketIdleImg.onload = onAssetLoad;
-        bucketActiveImg.onload = onAssetLoad;
+        const onAssetLoad = () => { loaded++; if(loaded >= 3) { updateToolbar(); setTool("edit_path_select"); } };
+        uiImage.onload = onAssetLoad; bucketIdleImg.onload = onAssetLoad; bucketActiveImg.onload = onAssetLoad;
     }
 
     document.getElementById('imgInput').onchange = (e) => {
         const r = new FileReader(); r.onload = (ev) => {
             bgImage = new Image(); bgImage.onload = () => { 
                 maskCanvas.width = bgImage.width; maskCanvas.height = bgImage.height;
+                bgOffsetX = 0; bgOffsetY = 0;
                 render(); 
-            };
-            bgImage.src = ev.target.result;
+            }; bgImage.src = ev.target.result;
         }; r.readAsDataURL(e.target.files[0]);
     };
 
     document.getElementById('pathInput').onchange = (e) => {
         const file = e.target.files[0]; if (!file) return;
-        const r = new FileReader(); r.onload = (ev) => { pathData = JSON.parse(ev.target.result); render(); }; r.readAsText(file);
+        const r = new FileReader(); r.onload = (ev) => { 
+            saveState(); pathData = JSON.parse(ev.target.result); render(); 
+        }; r.readAsText(file);
     };
 
-    function revertAll() { if(confirm("Clear everything?")) { mCtx.clearRect(0,0,maskCanvas.width,maskCanvas.height); pathData.Nodes = []; render(); } }
+    function revertAll() { if(confirm("Clear everything?")) { saveState(); mCtx.clearRect(0,0,maskCanvas.width,maskCanvas.height); pathData.Nodes = []; bgOffsetX = 0; bgOffsetY = 0; render(); } }
 
     initUI();
     window.addEventListener('resize', render);
