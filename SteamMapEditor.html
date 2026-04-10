@@ -42,7 +42,6 @@
         #canvas-container { position: relative; width: 100%; height: 100%; background: #000; overflow: hidden; }
         
         .btn-ui { cursor: pointer; border-radius: 4px; background: #111; width: 42px; height: 42px; border: 1px solid #333; }
-        .color-swatch { width: 28px; height: 28px; cursor: pointer; border: 2px solid transparent; }
         #palette { display: none; gap: 8px; flex-wrap: wrap; margin-top: 5px; }
     </style>
 </head>
@@ -87,6 +86,7 @@
     let bgImage = null, pathData = { Nodes: [] };
     let currentTool = "edit_path_select", activeColor = "#00FF00", brushSize = 15;
     let scale = 1, viewX = 0, viewY = 0, isDrawing = false;
+    let lastMousePos = { x: 0, y: 0 }; // Track raw screen position for snapping
 
     const UI_MAP = {
         "edit_path_select": {u: [301, 43], s: [215, 129]},
@@ -110,14 +110,13 @@
         window.addEventListener('mouseup', stop);
     }
 
-    function getMousePos(e) {
+    function getMousePos(clientX, clientY) {
         const rect = canvas.getBoundingClientRect();
-        const rawX = (e.clientX / 0.67) - rect.left;
-        const rawY = (e.clientY / 0.67) - rect.top;
+        const rawX = (clientX / 0.67) - rect.left;
+        const rawY = (clientY / 0.67) - rect.top;
         return { worldX: (rawX - viewX) / scale, worldY: (rawY - viewY) / scale };
     }
 
-    // Path Loader
     document.getElementById('pathInput').onchange = (e) => {
         const reader = new FileReader();
         reader.onload = (ev) => {
@@ -129,11 +128,23 @@
         reader.readAsText(e.target.files[0]);
     };
 
-    canvas.addEventListener('mousedown', (e) => { if(currentTool.includes("mask")) isDrawing = true; paint(getMousePos(e)); });
-    canvas.addEventListener('mousemove', (e) => { if(isDrawing) paint(getMousePos(e)); });
+    // Track mouse globally for tool-snapping logic
+    window.addEventListener('mousemove', (e) => {
+        lastMousePos.x = e.clientX;
+        lastMousePos.y = e.clientY;
+        if(isDrawing) paint(getMousePos(e.clientX, e.clientY));
+        render();
+    });
+
+    canvas.addEventListener('mousedown', (e) => { 
+        if(currentTool.includes("mask")) isDrawing = true; 
+        paint(getMousePos(e.clientX, e.clientY)); 
+    });
+    
     window.addEventListener('mouseup', () => isDrawing = false);
 
     function paint(pos) {
+        if (!currentTool.includes("mask")) return;
         mCtx.fillStyle = activeColor;
         mCtx.beginPath(); mCtx.arc(pos.worldX, pos.worldY, brushSize, 0, Math.PI*2); mCtx.fill();
         render();
@@ -160,6 +171,12 @@
         currentTool = name;
         const isMask = name.includes("mask");
         document.getElementById('brush-size-container').style.display = isMask ? 'flex' : 'none';
+        
+        // AUTOMATIC SNAP: If it's a mask brush, render it at cursor immediately
+        if (isMask) {
+            paint(getMousePos(lastMousePos.x, lastMousePos.y));
+        }
+
         updateToolbar();
     }
 
