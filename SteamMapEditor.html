@@ -26,7 +26,7 @@
         #hud-files .hud-header { background: #00ffcc; }
         #hud-toolbox { top: 130px; left: 20px; width: 300px; }
         
-        /* Brush Size Styling */
+        /* Brush Size Styling - Hidden by default */
         #brush-size-container { display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid #333; align-items: center; gap: 10px; }
         .size-slider { flex-grow: 1; cursor: pointer; accent-color: #00aaff; }
         
@@ -70,7 +70,7 @@
             <div id="palette"><div id="swatch-container" style="display:flex; gap:4px;"></div></div>
             
             <div id="brush-size-container">
-                <canvas id="btn-brush-size" width="42" height="42" class="btn-ui" style="cursor:default;"></canvas>
+                <canvas id="btn-edit_mask_brush_size" width="42" height="42" class="btn-ui" style="cursor:default;"></canvas>
                 <input type="range" id="sizeSlider" class="size-slider" min="5" max="100" value="15">
                 <span id="sizeValue" style="font-size:10px; width:20px;">15</span>
             </div>
@@ -90,10 +90,7 @@
                 <b>Editing:</b><br>
                 • <b>Arrow Keys:</b> Nudge selected node (1px)<br>
                 • <b>Shift + Arrows:</b> Nudge faster (10px)<br>
-                • <b>Select Tool:</b> Drag over nodes to box select<br><br>
-                <b>Flags:</b><br>
-                • <b>Underground Tool:</b> Click path to cycle 0-5<br>
-                • <b>Flag Tool:</b> Click path to enter value manually
+                • <b>Select Tool:</b> Drag over nodes to box select
             </div>
             <div class="credits">Map Editor Made By: MrNuke</div>
             <a href="https://topper64.co.uk/nk/btd5/monkey_wrench.exe" class="download-btn">DOWNLOAD MONKEY WRENCH</a>
@@ -133,7 +130,7 @@
         "edit_mask_road_brush": {u: [172, 43], s: [176, 0]},
         "edit_mask_water": {u: [86, 86], s: [0, 170]},
         "edit_mask_block_tower": {u: [43, 43], s: [0, 84]},
-        "edit_mask_brush_size": {u: [86, 43], s: [90, 0]}, // New Brush Size Coordinates
+        "edit_mask_brush_size": {u: [86, 43], s: [90, 0]},
         "main_menu_undo": {u: [43, 258], s: [86, 215]},
         "save": {u: [43, 301], s: [86, 258]}
     };
@@ -169,19 +166,7 @@
         const z = 0.67; 
         const rawX = (e.clientX / z) - (rect.left);
         const rawY = (e.clientY / z) - (rect.top);
-        return { 
-            worldX: (rawX - viewX) / scale, 
-            worldY: (rawY - viewY) / scale, 
-            rawX: rawX, 
-            rawY: rawY 
-        };
-    }
-
-    function distToSegment(p, v, w) {
-        let l2 = Math.pow(v[0]-w[0], 2) + Math.pow(v[1]-w[1], 2);
-        if (l2 == 0) return Math.hypot(p[0]-v[0], p[1]-v[1]);
-        let t = Math.max(0, Math.min(1, ((p[0]-v[0])*(w[0]-v[0]) + (p[1]-v[1])*(w[1]-v[1])) / l2));
-        return Math.hypot(p[0] - (v[0] + t*(w[0]-v[0])), p[1] - (v[1] + t*(w[1]-v[1])));
+        return { worldX: (rawX - viewX) / scale, worldY: (rawY - viewY) / scale, rawX, rawY };
     }
 
     canvas.addEventListener('mousedown', (e) => {
@@ -189,23 +174,9 @@
         if (e.button === 1 || spacePressed || (e.shiftKey && e.button === 0)) { 
             isPanning = true; panStartX = pos.rawX - viewX; panStartY = pos.rawY - viewY; return; 
         }
-
         saveState();
-
         if (currentTool.includes("mask")) {
             isDrawing = true; paint(pos.worldX, pos.worldY);
-        } else if (currentTool === "edit_path_underground" || currentTool === "edit_path_flag") {
-            pathData.Nodes.forEach(node => {
-                for(let i=0; i < node.Points.length - 1; i++) {
-                    if (distToSegment([pos.worldX, pos.worldY], node.Points[i], node.Points[i+1]) < 15/scale) {
-                        if (currentTool === "edit_path_underground") node.Flags = (node.Flags + 1) % 6;
-                        else {
-                            const val = prompt("Enter Flag Value:", node.Flags);
-                            if (val !== null) node.Flags = parseInt(val) || 0;
-                        }
-                    }
-                }
-            });
         } else {
             let hit = null;
             pathData.Nodes.forEach(n => n.Points.forEach(pt => { if(Math.hypot(pt[0]-pos.worldX, pt[1]-pos.worldY) < 15/scale) hit = pt; }));
@@ -261,27 +232,14 @@
             ctx.beginPath(); ctx.strokeStyle = "#00ffcc"; ctx.lineWidth = 3/scale;
             node.Points.forEach((pt, i) => { if(i===0) ctx.moveTo(pt[0], pt[1]); else ctx.lineTo(pt[0], pt[1]); });
             ctx.stroke();
-
-            if (node.Points.length > 0) {
-                ctx.fillStyle = "white"; ctx.font = `${12/scale}px monospace`;
-                ctx.fillText(`F:${node.Flags || 0}`, node.Points[0][0], node.Points[0][1] - (10/scale));
-            }
-
             node.Points.forEach(pt => {
                 ctx.fillStyle = (selectedNodes.includes(pt) || selectedNode === pt) ? "white" : "#ff4444";
                 ctx.beginPath(); ctx.arc(pt[0], pt[1], 5/scale, 0, Math.PI*2); ctx.fill();
             });
         });
-
-        if (isBoxSelecting) {
-            ctx.strokeStyle = "rgba(0,170,255,0.8)"; ctx.setLineDash([5/scale, 5/scale]);
-            ctx.strokeRect(boxStartX, boxStartY, boxEndX-boxStartX, boxEndY-boxStartY);
-            ctx.setLineDash([]);
-        }
         ctx.restore();
     }
 
-    // Paint function now uses brushSize
     function paint(x, y) { 
         mCtx.fillStyle = activeColor; 
         mCtx.beginPath(); 
@@ -290,30 +248,49 @@
     }
 
     function setTool(name) {
-        currentTool = name; updateToolbar();
+        currentTool = name; 
+        updateToolbar();
+        
         const pal = document.getElementById('palette');
         const cont = document.getElementById('swatch-container');
-        const sizeUI = document.getElementById('brush-size-container');
+        const sizeContainer = document.getElementById('brush-size-container');
 
         if (PALETTES[name]) {
-            pal.style.display = 'flex'; cont.innerHTML = '';
+            pal.style.display = 'flex'; 
+            cont.innerHTML = '';
             PALETTES[name].forEach(item => {
-                const sw = document.createElement('div'); sw.className = 'color-swatch'; sw.style.background = item.c;
-                sw.onclick = () => activeColor = item.c; cont.appendChild(sw);
+                const sw = document.createElement('div'); 
+                sw.className = 'color-swatch'; 
+                sw.style.background = item.c;
+                sw.onclick = () => { 
+                    activeColor = item.c; 
+                    sizeContainer.style.display = 'flex'; // SHOW SLIDER WHEN COLOR SELECTED
+                };
+                cont.appendChild(sw);
             });
             activeColor = PALETTES[name][0].c;
-            sizeUI.style.display = 'flex'; // Show size slider for mask tools
+            // Show slider automatically if we switch between different mask brushes
+            sizeContainer.style.display = 'flex';
         } else {
             pal.style.display = 'none';
-            sizeUI.style.display = 'none'; // Hide size slider for path tools
+            sizeContainer.style.display = 'none'; // HIDE SLIDER FOR PATH TOOLS
         }
         document.getElementById('status').textContent = `Tool: ${name}`;
     }
 
     function updateToolbar() {
         Object.entries(UI_MAP).forEach(([name, pos]) => {
-            const bCtx = document.getElementById(`btn-${name}`).getContext('2d');
-            const coords = (currentTool === name || (name === "edit_mask_brush_size" && currentTool.includes("mask"))) ? pos.s : pos.u;
+            const btn = document.getElementById(`btn-${name}`);
+            if(!btn) return;
+            const bCtx = btn.getContext('2d');
+            
+            // Logic for brush size icon to stay "selected" if current tool is a mask brush
+            let isSelected = (currentTool === name);
+            if (name === "edit_mask_brush_size" && currentTool.includes("mask")) {
+                isSelected = true;
+            }
+
+            const coords = isSelected ? pos.s : pos.u;
             bCtx.clearRect(0,0,42,42); 
             bCtx.drawImage(uiImage, coords[0], coords[1], 42, 42, 0, 0, 42, 42);
         });
@@ -322,13 +299,13 @@
     function initUI() {
         const toolbar = document.getElementById('toolbar');
         Object.keys(UI_MAP).forEach(name => {
-            if (name === "edit_mask_brush_size") return; // Skip slider icon for manual toolbar adding
-            const btn = document.createElement('canvas'); btn.width = 42; btn.height = 42; btn.className = "btn-ui"; btn.id = `btn-${name}`;
+            if (name === "edit_mask_brush_size") return; // Handled separately in toolbox
+            const btn = document.createElement('canvas'); 
+            btn.width = 42; btn.height = 42; btn.className = "btn-ui"; btn.id = `btn-${name}`;
             btn.onclick = () => (name === "main_menu_undo" ? undo() : (name === "save" ? exportData() : setTool(name)));
             toolbar.appendChild(btn);
         });
 
-        // Initialize Slider Logic
         const slider = document.getElementById('sizeSlider');
         const valText = document.getElementById('sizeValue');
         slider.oninput = function() {
@@ -336,7 +313,8 @@
             valText.innerText = this.value;
         };
 
-        uiImage.src = UI_PNG; uiImage.onload = updateToolbar;
+        uiImage.src = UI_PNG; 
+        uiImage.onload = updateToolbar;
     }
 
     function saveState() { if (history.length > 20) history.shift(); history.push({ path: JSON.parse(JSON.stringify(pathData)), mask: maskCanvas.toDataURL() }); }
@@ -352,9 +330,7 @@
     };
     document.getElementById('pathInput').onchange = async (e) => { pathData = JSON.parse(await e.target.files[0].text()); render(); };
 
-    window.addEventListener('keydown', (e) => {
-        if (e.code === 'Space') spacePressed = true;
-    });
+    window.addEventListener('keydown', (e) => { if (e.code === 'Space') spacePressed = true; });
     window.addEventListener('keyup', (e) => { if(e.code === 'Space') spacePressed = false; });
 
     initUI();
