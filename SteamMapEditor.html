@@ -27,7 +27,7 @@
         #hud-files { top: 20px; left: 20px; width: 300px; border-color: #00ffcc; }
         #hud-files .hud-header { background: #00ffcc; }
         #hud-toolbox { top: 130px; left: 20px; width: 300px; }
-        #hud-help { top: 320px; left: 20px; width: 300px; border-color: #ffaa00; max-height: 550px; } /* Increased height for flags */
+        #hud-help { top: 320px; left: 20px; width: 300px; border-color: #ffaa00; max-height: 550px; }
         #hud-help .hud-header { background: #ffaa00; }
         
         #hud-editor { top: 20px; left: 340px; width: 800px; height: 600px; resize: both; overflow: auto; min-width: 400px; min-height: 300px; }
@@ -74,13 +74,13 @@
         <div class="hud-content" style="flex-direction: column;">
             <div class="help-section">
                 <b>Navigation:</b><br>
-                • <b>Space + Drag:</b> Pan View <br>
-                • <b>Shift + Left Click:</b> Drag World/Image <br>
-                • <b>Mouse Wheel:</b> Zoom In/Out <br><br>
+                • <b>Space + Drag:</b> Pan View<br>
+                • <b>Shift + Left Click:</b> Drag World/Image<br>
+                • <b>Mouse Wheel:</b> Zoom In/Out<br><br>
                 <b>Editing:</b><br>
-                • <b>Arrow Keys:</b> Nudge selected node (1px) <br>
-                • <b>Shift + Arrows:</b> Nudge faster (10px) <br>
-                • <b>Select Tool:</b> Drag over nodes to box select <br><br>
+                • <b>Arrow Keys:</b> Nudge selected node (1px)<br>
+                • <b>Shift + Arrows:</b> Nudge faster (10px)<br>
+                • <b>Select Tool:</b> Drag over nodes to box select<br><br>
                 <b>Flag Numbers:</b><br>
                 • <b>0:</b> Standard Path / Walkable<br>
                 • <b>1:</b> Start / Entry Segment<br>
@@ -88,8 +88,8 @@
                 • <b>4:</b> Straight Connection / Jump<br>
                 • <b>3/5:</b> Special Traversal
             </div>
-            <div class="credits">Map Editor Made By: MrNuke </div>
-            <a href="https://topper64.co.uk/nk/btd5/monkey_wrench.exe" class="download-btn">DOWNLOAD MONKEY WRENCH </a>
+            <div class="credits">Map Editor Made By: MrNuke</div>
+            <a href="https://topper64.co.uk/nk/btd5/monkey_wrench.exe" class="download-btn">DOWNLOAD MONKEY WRENCH</a>
         </div>
     </div>
 
@@ -273,7 +273,13 @@
         ctx.restore();
     }
 
-    function paint(x, y) { mCtx.fillStyle = activeColor; mCtx.beginPath(); mCtx.arc(x, y, 15, 0, Math.PI * 2); mCtx.fill(); }
+    function paint(x, y) { 
+        mCtx.fillStyle = activeColor; 
+        mCtx.beginPath(); 
+        mCtx.arc(x, y, 15, 0, Math.PI * 2); 
+        mCtx.fill(); 
+        mCtx.closePath();
+    }
 
     function setTool(name) {
         currentTool = name; updateToolbar();
@@ -338,12 +344,6 @@
             render();
         }
     });
-    window.addEventListener('keyup', (e) => { if(e.code === 'Space') spacePressed = false; });
-
-    initUI();
-</script>
-</body>
-</html>
     window.addEventListener('keyup', (e) => { if(e.code === 'Space') spacePressed = false; });
 
     initUI();
