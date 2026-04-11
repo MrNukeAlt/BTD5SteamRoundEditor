@@ -33,7 +33,6 @@
         .btn-path { background: #00ffcc; }
         .btn-mask { background: #ffaa00; }
         .btn-wrench { background: #555; color: #fff; margin-top: 5px; }
-        .btn-wrench:hover { background: #777; }
 
         #brush-size-container, #flags-container { display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid #333; align-items: center; gap: 10px; }
         .size-slider { flex-grow: 1; cursor: pointer; accent-color: #00aaff; }
@@ -225,19 +224,24 @@
             mCtx.arc(pos.worldX - bgOffsetX, pos.worldY - bgOffsetY, brushSize, 0, Math.PI*2); mCtx.fill();
         } else if (currentTool.startsWith("edit_path")) {
             let found = null;
-            pathData.Nodes.forEach(n => n.Points.forEach((pt, i) => { if(Math.hypot(pt[0]-pos.worldX, pt[1]-pos.worldY) < 15/scale) found = {node: n, idx: i}; }));
+            pathData.Nodes.forEach(n => n.Points.forEach((pt, i) => { 
+                if(Math.hypot((pt[0] + bgOffsetX)-pos.worldX, (pt[1] + bgOffsetY)-pos.worldY) < 15/scale) found = {node: n, idx: i}; 
+            }));
+
             if(found) {
-                selectedPoints = [found];
+                if (!selectedPoints.some(s => s.node === found.node && s.idx === found.idx)) {
+                    selectedPoints = [found];
+                }
                 if(currentTool === "edit_path_move") { saveState(); isDraggingNodes = true; dragOriginWorld = {x:pos.worldX, y:pos.worldY}; }
-                if(currentTool === "edit_path_flag") { saveState(); found.node.Flags = found.node.Flags === 1 ? 0 : 1; }
-                // Update Flag UI when node is selected
                 if(currentTool === "edit_path_underground") { document.getElementById('flagValue').innerText = found.node.Flags || 0; }
             } else {
                 if(currentTool === "edit_path_select") { isBoxSelecting = true; boxStartX = pos.worldX; boxStartY = pos.worldY; selectedPoints = []; }
                 if(currentTool === "edit_path_spawn") {
-                    saveState(); const newNode = { Flags: 0, Points: [[Math.round(pos.worldX), Math.round(pos.worldY)]] };
+                    saveState(); 
+                    const newNode = { Flags: 0, Points: [[Math.round(pos.worldX - bgOffsetX), Math.round(pos.worldY - bgOffsetY)]] };
                     pathData.Nodes.push(newNode); selectedPoints = [{node: newNode, idx: 0}];
                 }
+                if(currentTool === "edit_path_move") { selectedPoints = []; }
             }
         }
         render();
@@ -249,7 +253,6 @@
         else if (isMovingLayer) {
             const dx = pos.worldX - dragOriginWorld.x, dy = pos.worldY - dragOriginWorld.y;
             bgOffsetX += dx; bgOffsetY += dy;
-            pathData.Nodes.forEach(n => n.Points.forEach(p => { p[0]+=dx; p[1]+=dy; }));
             mCtx.clearRect(0,0,maskCanvas.width,maskCanvas.height); mCtx.drawImage(moveBufferCanvas, 0, 0);
             dragOriginWorld = {x: pos.worldX, y: pos.worldY};
         } else if (isDraggingNodes) {
@@ -261,7 +264,11 @@
         } else if (isBoxSelecting) {
             const l = Math.min(boxStartX, pos.worldX), t = Math.min(boxStartY, pos.worldY), r = Math.max(boxStartX, pos.worldX), b = Math.max(boxStartY, pos.worldY);
             selectedPoints = [];
-            pathData.Nodes.forEach(n => n.Points.forEach((pt, i) => { if(pt[0]>=l && pt[0]<=r && pt[1]>=t && pt[1]<=b) selectedPoints.push({node:n, idx:i}); }));
+            pathData.Nodes.forEach(n => n.Points.forEach((pt, i) => { 
+                const wx = pt[0] + bgOffsetX;
+                const wy = pt[1] + bgOffsetY;
+                if(wx>=l && wx<=r && wy>=t && wy<=b) selectedPoints.push({node:n, idx:i}); 
+            }));
         }
         render();
     });
@@ -271,25 +278,32 @@
     function render() {
         canvas.width = canvas.parentElement.clientWidth; canvas.height = canvas.parentElement.clientHeight;
         ctx.clearRect(0,0,canvas.width,canvas.height); ctx.save(); ctx.translate(viewX, viewY); ctx.scale(scale, scale);
+        
         if (bgImage) { ctx.globalAlpha = 0.5; ctx.drawImage(bgImage, bgOffsetX, bgOffsetY); ctx.globalAlpha = 1; }
         ctx.globalAlpha = 0.7; ctx.drawImage(maskCanvas, bgOffsetX, bgOffsetY); ctx.globalAlpha = 1;
+        
         pathData.Nodes.forEach(n => {
             ctx.beginPath(); ctx.strokeStyle = "#00ffcc"; ctx.lineWidth = 2/scale;
-            n.Points.forEach((p, i) => i===0 ? ctx.moveTo(p[0],p[1]) : ctx.lineTo(p[0],p[1])); ctx.stroke();
+            n.Points.forEach((p, i) => {
+                const drawX = p[0] + bgOffsetX;
+                const drawY = p[1] + bgOffsetY;
+                i===0 ? ctx.moveTo(drawX, drawY) : ctx.lineTo(drawX, drawY);
+            }); 
+            ctx.stroke();
             
             if (n.Flags > 0 && n.Points.length > 0) {
                 const p = n.Points[0];
-                const flagData = UI_MAP["edit_path_flag"].u;
-                ctx.drawImage(uiImage, flagData[0], flagData[1], 42, 42, p[0] - 21/scale, p[1] - 42/scale, 42/scale, 42/scale);
-                // Optionally show the flag number
-                ctx.fillStyle = "white"; ctx.font = `${12/scale}px Arial`; ctx.fillText(n.Flags, p[0] + 10/scale, p[1] - 25/scale);
+                const flagSource = UI_MAP["edit_path_flag"].u;
+                ctx.drawImage(uiImage, flagSource[0], flagSource[1], 42, 42, (p[0] + bgOffsetX) - 21/scale, (p[1] + bgOffsetY) - 42/scale, 42/scale, 42/scale);
+                ctx.fillStyle = "white"; ctx.font = `bold ${14/scale}px Arial`; ctx.fillText(n.Flags, (p[0] + bgOffsetX) + 5/scale, (p[1] + bgOffsetY) - 25/scale);
             }
 
             n.Points.forEach((p, i) => {
                 const sel = selectedPoints.some(s => s.node === n && s.idx === i);
-                ctx.fillStyle = sel ? "white" : "#ffa500"; ctx.beginPath(); ctx.arc(p[0], p[1], (sel?6:4)/scale, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = sel ? "white" : "#ffa500"; ctx.beginPath(); ctx.arc(p[0] + bgOffsetX, p[1] + bgOffsetY, (sel?6:4)/scale, 0, Math.PI*2); ctx.fill();
             });
         });
+        
         if(isBoxSelecting) { ctx.strokeStyle = "white"; ctx.lineWidth = 1/scale; ctx.strokeRect(boxStartX, boxStartY, currentMousePos.worldX-boxStartX, currentMousePos.worldY-boxStartY); }
         ctx.restore();
     }
@@ -309,7 +323,6 @@
         const isMask = name.includes("mask"), isBucket = name === "edit_mask_bucket";
         document.getElementById('brush-size-container').style.display = (isMask && !isBucket) ? 'flex' : 'none';
         
-        // Show Flags UI only for edit_path_underground
         document.getElementById('flags-container').style.display = (name === 'edit_path_underground') ? 'flex' : 'none';
         if(name === 'edit_path_underground') {
             const iconCtx = document.getElementById('flag-toggle-icon').getContext('2d');
@@ -327,6 +340,7 @@
                 sw.style.background = item.c; sw.onclick = () => { activeColor = item.c; setTool(name); }; cont.appendChild(sw);
             });
         } else pal.style.display = 'none';
+        
         updateToolbar(); document.getElementById('status').textContent = `Tool: ${name}`;
     }
 
@@ -354,7 +368,36 @@
     document.getElementById('imgInput').onchange = (e) => {
         const r = new FileReader(); r.onload = (ev) => { bgImage = new Image(); bgImage.onload = () => { maskCanvas.width = bgImage.width; maskCanvas.height = bgImage.height; render(); }; bgImage.src = ev.target.result; }; r.readAsDataURL(e.target.files[0]);
     };
-    document.getElementById('pathInput').onchange = (e) => { const r = new FileReader(); r.onload = (ev) => { pathData = JSON.parse(ev.target.result); render(); }; r.readAsText(e.target.files[0]); };
+
+    document.getElementById('pathInput').onchange = (e) => {
+        const r = new FileReader();
+        r.onload = (ev) => {
+            try {
+                pathData = JSON.parse(ev.target.result);
+                if ((bgImage || maskCanvas.width > 0) && pathData.Nodes && pathData.Nodes.length > 0) {
+                    const targetWidth = bgImage ? bgImage.width : maskCanvas.width;
+                    const targetHeight = bgImage ? bgImage.height : maskCanvas.height;
+                    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                    let hasPoints = false;
+                    pathData.Nodes.forEach(node => {
+                        node.Points.forEach(pt => {
+                            if (pt[0] < minX) minX = pt[0]; if (pt[1] < minY) minY = pt[1];
+                            if (pt[0] > maxX) maxX = pt[0]; if (pt[1] > maxY) maxY = pt[1];
+                            hasPoints = true;
+                        });
+                    });
+                    if (hasPoints) {
+                        const shiftX = Math.round((targetWidth / 2) - ((minX + maxX) / 2));
+                        const shiftY = Math.round((targetHeight / 2) - ((minY + maxY) / 2));
+                        pathData.Nodes.forEach(node => { node.Points.forEach(pt => { pt[0] += shiftX; pt[1] += shiftY; }); });
+                    }
+                }
+                render();
+            } catch (err) { alert("Error parsing .path file."); }
+        };
+        r.readAsText(e.target.files[0]);
+    };
+
     function savePath() { const b = new Blob([JSON.stringify(pathData, null, 4)], {type: "application/json"}); const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href = u; a.download = "map.path"; a.click(); }
     function saveMask() { const a = document.createElement('a'); a.href = maskCanvas.toDataURL(); a.download = "mask.png"; a.click(); }
     function revertAll() { if(confirm("Revert?")) { mCtx.clearRect(0,0,maskCanvas.width,maskCanvas.height); pathData.Nodes = []; bgOffsetX = 0; bgOffsetY = 0; render(); } }
