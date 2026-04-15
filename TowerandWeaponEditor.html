@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>BTD5 Weapon Master - Session Recovery Update</title>
+    <title>BTD5 Weapon Master - Projectile Update</title>
     <style>
         :root { --bg: #050505; --card: #121212; --accent: #00d4ff; --text: #e0e0e0; --success: #00ff88; --error: #ff4d4d; --border: #222; --session: #a855f7; }
         body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
@@ -57,12 +57,14 @@
     spriteSheet.crossOrigin = "anonymous";
     spriteSheet.src = "https://pub-1407f82391df4ab1951418d04be76914.r2.dev/uploads/29736065-7658-4e24-b1a6-60364a2662ad.png";
 
-    // Library contains all XML data provided previously
+    // Library updated with Bomb and Missile variants
     let spriteLibrary = [
         {name:"tacks",x:659,y:662,w:122,h:91,aw:122,ah:91},
         {name:"spiked_mine",x:659,y:552,w:105,h:106,aw:105,ah:106},
         {name:"spiked_ball",x:270,y:586,w:105,h:106,aw:105,ah:106},
         {name:"bomb_tower_bomb",x:441,y:415,w:76,h:81,aw:76,ah:81},
+        {name:"bomb_tower_bomb_red",x:2,y:784,w:76,h:81,aw:76,ah:81},
+        {name:"bomb_tower_missile",x:691,y:279,w:80,h:149,aw:40,ah:149},
         {name:"acorn",x:929,y:157,w:37,h:48,aw:37,ah:48},
         {name:"bananas",x:785,y:739,w:99,h:76,aw:99,ah:76},
         {name:"banana_box",x:672,y:432,w:98,h:116,aw:98,ah:116},
@@ -70,8 +72,8 @@
         {name:"supermonkey_sun_god_projectile",x:82,y:793,w:90,h:64,aw:90,ah:64},
         {name:"supermonkey_tech_terror_projectile",x:2,y:535,w:118,h:131,aw:118,ah:131},
         {name:"whirlwind",x:332,y:2,w:233,h:222,aw:233,ah:222},
-        {name:"tempest_tornado",x:2,y:2,w:326,h:310,aw:326,ah:310}
-        // ... Library expanded in full
+        {name:"tempest_tornado",x:2,y:2,w:326,h:310,aw:326,ah:310},
+        {name:"buccaneer_monkey_pirates_harpoon",x:362,y:822,w:159,h:29,aw:159,ah:29}
     ];
 
     // --- SESSION MANAGEMENT ---
@@ -106,7 +108,14 @@
     function getBestSprite(name) {
         if (!name) return null;
         let clean = name.toLowerCase().replace(".json", "");
-        const map = { "roadtacks": "tacks", "spikedmines": "spiked_mine", "spikedballs": "spiked_ball" };
+        const map = { 
+            "roadtacks": "tacks", 
+            "spikedmines": "spiked_mine", 
+            "spikedballs": "spiked_ball",
+            "bombprojectile": "bomb_tower_bomb",
+            "bombprojectilered": "bomb_tower_bomb_red",
+            "bombtowermissile": "bomb_tower_missile"
+        };
         const target = map[clean] || clean;
         return spriteLibrary.find(s => target.includes(s.name.toLowerCase())) || null;
     }
