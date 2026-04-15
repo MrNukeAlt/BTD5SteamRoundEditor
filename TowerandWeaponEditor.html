@@ -2,252 +2,208 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>BTD5 Architect - Explicit Mapping Update</title>
+    <title>BTD5 Logic Architect - Projectile Fix Applied</title>
     <style>
-        :root { --bg: #0b0b0b; --card: #161616; --accent: #ff9800; --text: #d1d1d1; --success: #2ecc71; --error: #e74c3c; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
-        .controls { background: #111; padding: 12px 20px; border-bottom: 2px solid #333; display: flex; gap: 15px; align-items: center; }
-        #editor-pane { flex: 1; overflow-y: auto; padding: 20px 10%; }
-        .edit-box { background: var(--card); padding: 12px; border-radius: 6px; border: 1px solid #2a2a2a; margin-top: 10px; }
-        label { display: block; font-size: 0.7rem; color: var(--accent); font-weight: bold; text-transform: uppercase; margin-bottom: 5px; }
-        .field-row { display: flex; align-items: center; gap: 12px; }
-        .sprite-preview { width: 100px; height: 100px; border: 2px solid #444; background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 6px; flex-shrink: 0; position: relative; }
-        #debug-log { height: 140px; background: #000; color: #0f0; font-family: 'Consolas', monospace; font-size: 11px; padding: 10px; overflow-y: scroll; border-top: 2px solid #333; }
-        .log-succ { color: var(--success); }
-        input { background: #000; border: 1px solid #333; color: #0f0; padding: 8px; border-radius: 4px; width: 100%; box-sizing: border-box; }
-        #bezier-popup { position: fixed; top: 100px; right: 50px; width: 500px; height: 500px; background: #111; border: 2px solid var(--accent); border-radius: 10px; display: none; flex-direction: column; z-index: 1000; }
-        canvas { background: #000; cursor: crosshair; }
-        .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        :root { --bg: #050505; --card: #121212; --accent: #00d4ff; --text: #e0e0e0; --success: #00ff88; --error: #ff4d4d; --border: #222; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
+        .header { background: #000; padding: 10px 20px; border-bottom: 1px solid var(--border); display: flex; gap: 15px; align-items: center; justify-content: space-between; }
+        #editor-container { flex: 1; overflow-y: auto; padding: 20px 5%; display: flex; flex-direction: column; gap: 10px; }
+        .node { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-top: 5px; position: relative; }
+        .node-title { font-size: 0.7rem; font-weight: 800; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; display: block; }
+        .task-list { margin-left: 20px; border-left: 1px solid #333; padding-left: 15px; display: flex; flex-direction: column; gap: 8px; }
+        .field-row { display: flex; align-items: center; gap: 15px; }
+        .input-wrap { flex: 1; }
+        input { background: #000; border: 1px solid #333; color: var(--success); padding: 8px; border-radius: 4px; width: 100%; box-sizing: border-box; font-family: 'Consolas', monospace; }
+        .sprite-preview { width: 85px; height: 85px; background: #000; border: 1px solid #444; border-radius: 4px; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
+        .btn { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px; text-transform: uppercase; }
+        #log { height: 80px; background: #000; color: #aaa; font-size: 11px; padding: 10px; border-top: 1px solid var(--border); overflow-y: auto; }
+        .log-ok { color: var(--success); }
     </style>
 </head>
 <body>
 
-<div class="controls">
-    <input type="file" id="fileInput" style="display:none" accept=".json,.weapon,.tower">
-    <button class="btn" style="background:#3498db; color:white" onclick="document.getElementById('fileInput').click()">📂 Load JSON File</button>
-    <button class="btn" id="vizToggleBtn" style="background:var(--accent); display:none" onclick="togglePopup()">✨ Preview Path</button>
-    <span id="fileNameDisplay" style="color:#888; font-size:0.9rem"></span>
+<div class="header">
+    <div style="font-weight: 900; color: var(--accent);">BTD5 <span style="color:white">PROJECTILE PATCHER</span></div>
+    <div style="display:flex; gap:10px">
+        <input type="file" id="fileIn" style="display:none" accept=".json,.weapon">
+        <button class="btn" style="background:white; color:black" onclick="document.getElementById('fileIn').click()">📂 Load Weapon</button>
+        <button class="btn" style="background:var(--success); color:black" onclick="exportJSON()">💾 Export & Verify</button>
+    </div>
 </div>
 
-<div id="editor-pane"><div id="editor"></div></div>
-<div id="debug-log">--- SYSTEM READY: EXPLICIT JSON-TO-SPRITE LINKS APPLIED ---</div>
-
-<div id="bezier-popup">
-    <div style="background: var(--accent); padding: 5px 15px; color: black; font-weight: bold;">Path Visualizer <span onclick="togglePopup()" style="float:right; cursor:pointer">✖</span></div>
-    <canvas id="bezierCanvas" width="500" height="500"></canvas>
-</div>
+<div id="editor-container"></div>
+<div id="log">Patch 1.0.4: Specific Projectile Mappings Loaded.</div>
 
 <script>
-    let currentData = null, curveSegments = [], spriteMap = [];
-    let scale = 1.0, offsetX = 250, offsetY = 250, isPanning = false, startX, startY, draggingPoint = null;
-    let canvas, ctx, popup;
-
+    let weaponData = null;
     const spriteSheet = new Image();
     spriteSheet.crossOrigin = "anonymous";
     spriteSheet.src = "https://pub-1407f82391df4ab1951418d04be76914.r2.dev/uploads/29736065-7658-4e24-b1a6-60364a2662ad.png";
 
-    function log(msg, type='') {
-        const logger = document.getElementById('debug-log');
-        const div = document.createElement('div');
-        div.className = type; 
-        div.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
-        logger.appendChild(div);
-        logger.scrollTop = logger.scrollHeight;
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-        canvas = document.getElementById('bezierCanvas');
-        ctx = canvas.getContext('2d');
-        popup = document.getElementById('bezier-popup');
-        
-        const rawData = [
-            {name:"acorn",x:929,y:157,w:37,h:48}, {name:"bananas",x:785,y:739,w:99,h:76}, {name:"banana_box",x:672,y:432,w:98,h:116},
-            {name:"bee",x:587,y:757,w:102,h:71}, {name:"bomb_tower_bomb",x:441,y:415,w:76,h:81}, {name:"bomb_tower_bomb_red",x:2,y:784,w:76,h:81},
-            {name:"bomb_tower_missile",x:691,y:279,w:80,h:149,aw:40,ah:149}, {name:"bomb_tower_moab_assassin",x:301,y:415,w:136,h:167,aw:68,ah:167},
-            {name:"bomb_tower_moab_mauler",x:679,y:2,w:110,h:128,aw:55,ah:128}, {name:"bomb_tower_special_ability_projectile",x:569,y:203,w:118,h:171,aw:59,ah:171},
-            {name:"boomerang",x:362,y:855,w:70,h:39}, {name:"boomerang_red",x:611,y:832,w:72,h:39}, {name:"buccaneer_monkey_pirates_harpoon",x:362,y:822,w:159,h:29},
-            {name:"dartling_gun_laser",x:850,y:467,w:46,h:115}, {name:"dartling_gun_rocket",x:911,y:2,w:42,h:61}, {name:"dart_monkey_dart",x:873,y:82,w:24,h:79},
-            {name:"engineer_foam",x:965,y:77,w:30,h:76}, {name:"engineer_nail",x:982,y:235,w:9,h:38}, {name:"evil_monkey_temple_projectile",x:332,y:228,w:192,h:183},
-            {name:"frag_shrapnel",x:923,y:266,w:23,h:38}, {name:"glaive",x:379,y:678,w:100,h:106}, {name:"glaive_red",x:483,y:678,w:100,h:106},
-            {name:"glue_gunner_glue_green",x:897,y:214,w:21,h:48}, {name:"glue_gunner_glue_yellow",x:957,y:235,w:21,h:48}, {name:"grape",x:891,y:266,w:28,h:35},
-            {name:"grilled_pineapple",x:441,y:522,w:105,h:152}, {name:"helicopter_missile",x:587,y:678,w:40,h:67}, {name:"hot_tacks",x:124,y:620,w:122,h:91},
-            {name:"ice_shard",x:873,y:165,w:20,h:80}, {name:"intense_magic",x:250,y:696,w:100,h:100}, {name:"juggernaut_ball_01",x:528,y:378,w:140,h:140},
-            {name:"meerkat_pro_laser",x:929,y:209,w:24,h:53}, {name:"mm_box",x:133,y:478,w:133,h:138}, {name:"mm_bundle",x:775,y:279,w:112,h:79},
-            {name:"mm_wad",x:104,y:715,w:114,h:74}, {name:"monkey_apprentice_dragon_breath",x:793,y:2,w:76,h:122,aw:59,ah:115}, {name:"monkey_apprentice_fireball",x:845,y:589,w:48,h:80},
-            {name:"monkey_apprentice_lightning",x:354,y:788,w:207,h:30}, {name:"monkey_farmer_pro_banana",x:176,y:800,w:106,h:54}, {name:"monkey_temple_bomb_tower_projectile",x:693,y:757,w:60,h:118},
-            {name:"monkey_temple_glue_tower_projectile",x:873,y:2,w:34,h:76}, {name:"monkey_temple_ice_tower_projectile",x:774,y:467,w:72,h:118}, {name:"monkey_temple_main_projectile",x:133,y:316,w:164,h:158},
-            {name:"monkey_temple_supermonkey_projectile",x:286,y:822,w:72,h:72}, {name:"mortar_big_one_bomb",x:379,y:586,w:52,h:81}, {name:"navy_harpoon",x:525,y:832,w:82,h:54},
-            {name:"ninja_throwing_star",x:911,y:77,w:50,h:50}, {name:"pineapple",x:550,y:522,w:105,h:152}, {name:"pop_and_awe_bomb",x:2,y:316,w:127,h:215},
-            {name:"Seeking_bolt",x:691,y:134,w:91,h:141}, {name:"spectre_mortar_bomb",x:957,y:2,w:36,h:71}, {name:"spiked_ball",x:270,y:586,w:105,h:106},
-            {name:"spiked_mine",x:659,y:552,w:105,h:106}, {name:"spikeopult_ball",x:845,y:673,w:52,h:52}, {name:"submarine_bmissile",x:785,y:589,w:56,h:146,ax:12,ay:3,aw:80,ah:149},
-            {name:"submarine_dart",x:901,y:131,w:24,h:79}, {name:"submarine_first_strike_missile",x:569,y:2,w:106,h:197}, {name:"supermonkey_laser_vision_projectile",x:757,y:819,w:72,h:74},
-            {name:"supermonkey_laser_vision_projectile_single",x:970,y:157,w:24,h:74}, {name:"supermonkey_plasma_vision_projectile",x:2,y:670,w:98,h:110}, {name:"supermonkey_sun_god_projectile",x:82,y:793,w:90,h:64},
-            {name:"supermonkey_tech_terror_projectile",x:2,y:535,w:118,h:131}, {name:"tacks",x:659,y:662,w:122,h:91}, {name:"tack_shooter_tack",x:950,y:287,w:18,h:46},
-            {name:"tempest_tornado",x:2,y:2,w:326,h:310}, {name:"track_glue",x:775,y:362,w:86,h:101}, {name:"tribal_turtle_coconut",x:833,y:819,w:42,h:63},
-            {name:"tribal_turtle_spear",x:528,y:228,w:36,h:120}, {name:"whirlwind",x:332,y:2,w:233,h:222}, {name:"wizard_lord_phoenix_flame",x:793,y:128,w:76,h:122}
-        ];
-
-        spriteMap = rawData.map(d => ({...d, aw: d.aw || d.w, ah: d.ah || d.h}));
-        log(`System Ready: Specific JSON weapon logic enabled.`, "log-succ");
-    });
-
-    document.getElementById('fileInput').addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            try {
-                currentData = JSON.parse(ev.target.result);
-                log(`--- LOADED: ${file.name} ---`);
-                document.getElementById('fileNameDisplay').innerText = file.name;
-                refreshApp();
-            } catch(err) { log("FILE ERROR: Invalid JSON", "log-err"); }
-        };
-        reader.readAsText(file);
-        this.value = ''; 
-    });
+    // Re-mapped Sprite Data (Consolidated from provided XML)
+    const spriteLibrary = [
+        {name:"acorn",x:929,y:157,w:37,h:48,aw:37,ah:48}, {name:"bananas",x:785,y:739,w:99,h:76,aw:99,ah:76}, {name:"banana_box",x:672,y:432,w:98,h:116,aw:98,ah:116},
+        {name:"bee",x:587,y:757,w:102,h:71,aw:102,ah:71}, {name:"bomb_tower_bomb",x:441,y:415,w:76,h:81,aw:76,ah:81}, {name:"bomb_tower_bomb_red",x:2,y:784,w:76,h:81,aw:76,ah:81},
+        {name:"bomb_tower_missile",x:691,y:279,w:80,h:149,aw:40,ah:149}, {name:"bomb_tower_moab_assassin",x:301,y:415,w:136,h:167,aw:68,ah:167},
+        {name:"bomb_tower_moab_mauler",x:679,y:2,w:110,h:128,aw:55,ah:128}, {name:"bomb_tower_special_ability_projectile",x:569,y:203,w:118,h:171,aw:59,ah:171},
+        {name:"boomerang",x:362,y:855,w:70,h:39,aw:70,ah:39}, {name:"boomerang_red",x:611,y:832,w:72,h:39,aw:72,ah:39}, {name:"buccaneer_monkey_pirates_harpoon",x:362,y:822,w:159,h:29,aw:159,ah:29},
+        {name:"dartling_gun_laser",x:850,y:467,w:46,h:115,aw:46,ah:115}, {name:"dartling_gun_rocket",x:911,y:2,w:42,h:61,aw:42,ah:61}, {name:"dart_monkey_dart",x:873,y:82,w:24,h:79,aw:24,ah:79},
+        {name:"engineer_foam",x:965,y:77,w:30,h:76,aw:30,ah:76}, {name:"engineer_nail",x:982,y:235,w:9,h:38,aw:9,ah:38}, {name:"evil_monkey_temple_projectile",x:332,y:228,w:192,h:183,aw:192,ah:183},
+        {name:"frag_shrapnel",x:923,y:266,w:23,h:38,aw:23,ah:38}, {name:"glaive",x:379,y:678,w:100,h:106,aw:100,ah:106}, {name:"glaive_red",x:483,y:678,w:100,h:106,aw:100,ah:106},
+        {name:"glue_gunner_glue_green",x:897,y:214,w:21,h:48,aw:21,ah:48}, {name:"glue_gunner_glue_yellow",x:957,y:235,w:21,h:48,aw:21,ah:48}, {name:"grape",x:891,y:266,w:28,h:35,aw:28,ah:35},
+        {name:"grilled_pineapple",x:441,y:522,w:105,h:152,aw:105,ah:152}, {name:"helicopter_missile",x:587,y:678,w:40,h:67,aw:40,ah:67}, {name:"hot_tacks",x:124,y:620,w:122,h:91,aw:122,ah:91},
+        {name:"ice_shard",x:873,y:165,w:20,h:80,aw:20,ah:80}, {name:"intense_magic",x:250,y:696,w:100,h:100,aw:100,ah:100}, {name:"juggernaut_ball_01",x:528,y:378,w:140,h:140,aw:140,ah:140},
+        {name:"meerkat_pro_laser",x:929,y:209,w:24,h:53,aw:24,ah:53}, {name:"mm_box",x:133,y:478,w:133,h:138,aw:148,ah:148}, {name:"mm_bundle",x:775,y:279,w:112,h:79,aw:112,ah:79},
+        {name:"mm_wad",x:104,y:715,w:114,h:74,aw:114,ah:74}, {name:"monkey_apprentice_dragon_breath",x:793,y:2,w:76,h:122,aw:59,ah:115}, {name:"monkey_apprentice_fireball",x:845,y:589,w:48,h:80,aw:48,ah:80},
+        {name:"monkey_apprentice_lightning",x:354,y:788,w:207,h:30,aw:207,ah:30}, {name:"monkey_farmer_pro_banana",x:176,y:800,w:106,h:54,aw:106,ah:54}, {name:"monkey_temple_bomb_tower_projectile",x:693,y:757,w:60,h:118,aw:60,ah:118},
+        {name:"monkey_temple_glue_tower_projectile",x:873,y:2,w:34,h:76,aw:34,ah:76}, {name:"monkey_temple_ice_tower_projectile",x:774,y:467,w:72,h:118,aw:72,ah:118}, {name:"monkey_temple_main_projectile",x:133,y:316,w:164,h:158,aw:164,ah:158},
+        {name:"monkey_temple_supermonkey_projectile",x:286,y:822,w:72,h:72,aw:72,ah:72}, {name:"mortar_big_one_bomb",x:379,y:586,w:52,h:81,aw:52,ah:81}, {name:"navy_harpoon",x:525,y:832,w:82,h:54,aw:82,ah:54},
+        {name:"ninja_throwing_star",x:911,y:77,w:50,h:50,aw:50,ah:50}, {name:"pineapple",x:550,y:522,w:105,h:152,aw:105,ah:152}, {name:"pop_and_awe_bomb",x:2,y:316,w:127,h:215,aw:127,ah:215},
+        {name:"Seeking_bolt",x:691,y:134,w:91,h:141,aw:91,ah:141}, {name:"spectre_mortar_bomb",x:957,y:2,w:36,h:71,aw:36,ah:71}, {name:"spiked_ball",x:270,y:586,w:105,h:106,aw:105,ah:106},
+        {name:"spiked_mine",x:659,y:552,w:105,h:106,aw:105,ah:106}, {name:"spikeopult_ball",x:845,y:673,w:52,h:52,aw:52,ah:52}, {name:"submarine_bmissile",x:785,y:589,w:56,h:146,aw:80,ah:149},
+        {name:"submarine_dart",x:901,y:131,w:24,h:79,aw:24,ah:79}, {name:"submarine_first_strike_missile",x:569,y:2,w:106,h:197,aw:106,ah:197}, {name:"supermonkey_laser_vision_projectile",x:757,y:819,w:72,h:74,aw:72,ah:74},
+        {name:"supermonkey_laser_vision_projectile_single",x:970,y:157,w:24,h:74,aw:24,ah:74}, {name:"supermonkey_plasma_vision_projectile",x:2,y:670,w:98,h:110,aw:98,ah:110}, {name:"supermonkey_sun_god_projectile",x:82,y:793,w:90,h:64,aw:90,ah:64},
+        {name:"supermonkey_tech_terror_projectile",x:2,y:535,w:118,h:131,aw:118,ah:131}, {name:"tacks",x:659,y:662,w:122,h:91,aw:122,ah:91}, {name:"tack_shooter_tack",x:950,y:287,w:18,h:46,aw:18,ah:46},
+        {name:"tempest_tornado",x:2,y:2,w:326,h:310,aw:326,ah:310}, {name:"track_glue",x:775,y:362,w:86,h:101,aw:86,ah:101}, {name:"tribal_turtle_coconut",x:833,y:819,w:42,h:63,aw:42,ah:63},
+        {name:"tribal_turtle_spear",x:528,y:228,w:36,h:120,aw:36,ah:120}, {name:"whirlwind",x:332,y:2,w:233,h:222,aw:233,ah:222}, {name:"wizard_lord_phoenix_flame",x:793,y:128,w:76,h:122,aw:76,ah:122}
+    ];
 
     function getBestSprite(name) {
         if (!name) return null;
         let clean = name.toLowerCase().replace(".json", "");
         
-        // Explicit JSON Key-Match Overrides
-        if (clean.includes("blueprojectile") || clean.includes("apprentice_projectile")) return spriteMap.find(s => s.name === "intense_magic");
-        if (clean.includes("tempesttornado")) return spriteMap.find(s => s.name === "tempest_tornado");
-        if (clean.includes("whirlwind")) return spriteMap.find(s => s.name === "whirlwind");
-        if (clean.includes("dragon_breath")) return spriteMap.find(s => s.name === "monkey_apprentice_dragon_breath");
-        if (clean.includes("seeking_bolt")) return spriteMap.find(s => s.name === "Seeking_bolt");
-        if (clean.includes("greenassassin")) return spriteMap.find(s => s.name === "bomb_tower_special_ability_projectile");
-        if (clean.includes("maulerprojectile")) return spriteMap.find(s => s.name === "bomb_tower_moab_mauler");
-        if (clean.includes("submarineballisticmissile")) return spriteMap.find(s => s.name === "submarine_bmissile");
-
-        // Standard Found Logic
-        let found = spriteMap.find(s => s.name === clean);
-        if (found) return found;
-
-        // General Fallbacks
-        if (clean.includes("bomb")) return spriteMap.find(s => s.name === "bomb_tower_bomb");
-        if (clean.includes("magic")) return spriteMap.find(s => s.name === "intense_magic");
-        
-        return null;
-    }
-
-    function updateThumb(thumbCanvas, spriteName) {
-        const spr = getBestSprite(spriteName);
-        const tctx = thumbCanvas.getContext('2d');
-        tctx.clearRect(0, 0, thumbCanvas.width, thumbCanvas.height);
-        if(spr && spriteSheet.complete) {
-            const ratio = Math.min(thumbCanvas.width / spr.aw, thumbCanvas.height / spr.ah) * 0.9;
-            tctx.drawImage(spriteSheet, spr.x, spr.y, spr.w, spr.h, (thumbCanvas.width - (spr.aw*ratio))/2, (thumbCanvas.height - (spr.ah*ratio))/2, spr.aw*ratio, spr.ah*ratio);
-        }
-    }
-
-    function draw() {
-        if (!ctx || !currentData) return;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.save(); ctx.translate(offsetX, offsetY); ctx.scale(scale, scale);
-        
-        if (curveSegments.length > 0) {
-            ctx.beginPath(); ctx.strokeStyle = '#ff9800'; ctx.lineWidth = 2/scale;
-            curveSegments.forEach((seg, i) => {
-                if (seg.length === 4) {
-                    if (i === 0) ctx.moveTo(seg[0][0], seg[0][1]);
-                    ctx.bezierCurveTo(seg[1][0], seg[1][1], seg[2][0], seg[2][1], seg[3][0], seg[3][1]);
-                }
-            });
-            ctx.stroke();
-
-            let activeSprite = "";
-            const scan = (obj) => {
-                for(let k in obj) {
-                    if(["SpriteFile", "GraphicName", "SpriteName", "Texture"].includes(k)) { activeSprite = obj[k]; return; }
-                    if(typeof obj[k] === "object" && obj[k] !== null) scan(obj[k]);
-                }
-            };
-            scan(currentData);
-
-            const sprite = getBestSprite(activeSprite);
-            if (sprite && spriteSheet.complete) {
-                curveSegments.forEach(seg => {
-                    seg.forEach((p, pi) => {
-                        ctx.drawImage(spriteSheet, sprite.x, sprite.y, sprite.w, sprite.h, p[0]-(sprite.aw/2), p[1]-(sprite.ah/2), sprite.aw, sprite.ah);
-                        ctx.fillStyle = pi === 0 || pi === 3 ? '#2ecc71' : '#3498db';
-                        ctx.beginPath(); ctx.arc(p[0], p[1], 5/scale, 0, Math.PI*2); ctx.fill();
-                    });
-                });
-            }
-        }
-        ctx.restore();
-    }
-
-    function refreshApp() { 
-        curveSegments = []; findCurves(currentData); renderEditor(); draw(); 
-        document.getElementById('vizToggleBtn').style.display = (curveSegments.length > 0) ? 'block' : 'none'; 
-    }
-
-    function findCurves(obj) { 
-        if (!obj || typeof obj !== 'object') return; 
-        for (let key in obj) { if (key === "Curves") curveSegments = obj[key]; else findCurves(obj[key]); } 
-    }
-
-    function renderEditor() {
-        const container = document.getElementById('editor');
-        container.innerHTML = '';
-        const build = (obj, parent) => {
-            for (let key in obj) {
-                const div = document.createElement('div');
-                div.className = 'edit-box';
-                div.innerHTML = `<label>${key}</label>`;
-
-                if (["SpriteFile", "GraphicName", "SpriteName", "Texture"].includes(key)) {
-                    const row = document.createElement('div'); row.className = 'field-row';
-                    const input = document.createElement('input'); input.value = obj[key];
-                    const prev = document.createElement('div'); prev.className = 'sprite-preview';
-                    const pCanv = document.createElement('canvas'); pCanv.width = 100; pCanv.height = 100;
-                    prev.appendChild(pCanv);
-                    input.oninput = (e) => { obj[key] = e.target.value; updateThumb(pCanv, e.target.value); draw(); };
-                    row.appendChild(input); row.appendChild(prev); div.appendChild(row);
-                    updateThumb(pCanv, obj[key]);
-                } else if (Array.isArray(obj[key]) && typeof obj[key][0] === 'number') {
-                    obj[key].forEach((v, i) => {
-                        const input = document.createElement('input'); input.type='number'; input.value=v;
-                        input.oninput = (e) => { obj[key][i] = parseFloat(e.target.value); draw(); };
-                        div.appendChild(input);
-                    });
-                } else if (typeof obj[key] === 'object' && obj[key] !== null) {
-                    build(obj[key], div);
-                } else {
-                    const input = document.createElement('input'); input.value=obj[key];
-                    input.oninput = (e) => { obj[key] = isNaN(e.target.value) ? e.target.value : parseFloat(e.target.value); };
-                    div.appendChild(input);
-                }
-                parent.appendChild(div);
-            }
+        // --- FIX: Mapping Table for Requested Projectiles ---
+        const lookup = {
+            "tempesttornadoprojectile": "tempest_tornado",
+            "apprentice_seeking_bolt": "Seeking_bolt",
+            "apprentice_projectile": "intense_magic",
+            "bombtowergreenassassin": "bomb_tower_special_ability_projectile",
+            "bombtowermaulerprojectile": "bomb_tower_moab_mauler",
+            "spikedmines": "spiked_mine",
+            "spikedballs": "spiked_ball"
         };
-        build(currentData, container);
+
+        if (lookup[clean]) return spriteLibrary.find(s => s.name === lookup[clean]);
+
+        // Generic fallback check
+        return spriteLibrary.find(s => clean === s.name.toLowerCase() || clean.includes(s.name.toLowerCase())) || null;
     }
 
-    function togglePopup() { if(popup) popup.style.display = (popup.style.display === 'flex') ? 'none' : 'flex'; draw(); }
-    
-    // Canvas Controls
-    window.addEventListener('mousedown', (e) => {
-        if (!canvas) return;
-        const rect = canvas.getBoundingClientRect();
-        const x = (e.clientX - rect.left - offsetX) / scale;
-        const y = (e.clientY - rect.top - offsetY) / scale;
-        for (let seg of curveSegments) { for (let p of seg) { if (Math.hypot(p[0]-x, p[1]-y) < 15/scale) { draggingPoint = p; return; } } }
-        if (e.target === canvas) { isPanning = true; startX = e.clientX - offsetX; startY = e.clientY - offsetY; }
+    // --- Core UI & Render Logic ---
+    document.getElementById('fileIn').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            try {
+                weaponData = JSON.parse(ev.target.result);
+                renderAll();
+                pushLog(`Loaded ${file.name}. Specific projectile patches applied.`, 'log-ok');
+            } catch (err) { pushLog("ERROR: Invalid JSON file.", "log-err"); }
+        };
+        reader.readAsText(file);
     });
-    window.addEventListener('mousemove', (e) => {
-        if (draggingPoint && canvas) { 
-            const rect = canvas.getBoundingClientRect();
-            draggingPoint[0] = Math.round((e.clientX - rect.left - offsetX) / scale); 
-            draggingPoint[1] = Math.round((e.clientY - rect.top - offsetY) / scale); 
-            draw(); renderEditor(); 
-        } else if (isPanning) { offsetX = e.clientX - startX; offsetY = e.clientY - startY; draw(); }
-    });
-    window.addEventListener('mouseup', () => { draggingPoint = null; isPanning = false; });
-    window.addEventListener('wheel', (e) => { if(e.target === canvas) { e.preventDefault(); scale *= (e.deltaY < 0 ? 1.1 : 0.9); draw(); } }, {passive: false});
+
+    function renderAll() {
+        const container = document.getElementById('editor-container');
+        container.innerHTML = '';
+        if (weaponData) buildTree(weaponData, container);
+    }
+
+    function buildTree(obj, parentElement) {
+        for (let key in obj) {
+            const val = obj[key];
+            const node = document.createElement('div');
+            node.className = 'node';
+
+            if (Array.isArray(val)) {
+                node.innerHTML = `<span class="node-title">${key}</span>`;
+                const list = document.createElement('div');
+                list.className = 'task-list';
+                val.forEach((item, index) => {
+                    const wrap = document.createElement('div');
+                    wrap.className = 'node';
+                    wrap.innerHTML = `<button class="btn" style="background:#333; color:#ff4d4d; position:absolute; right:5px; top:5px" onclick="removeAt('${key}', ${index})">×</button>`;
+                    (typeof item === 'object' && item !== null) ? buildTree(item, wrap) : createInput(item, (nv) => { val[index]=nv; }, wrap, `Item ${index}`);
+                    list.appendChild(wrap);
+                });
+                node.appendChild(list);
+                const add = document.createElement('button');
+                add.className = 'btn'; add.style.background = "var(--success)"; add.style.color = "black"; add.style.marginTop = "10px";
+                add.innerText = `+ Add to ${key}`;
+                add.onclick = () => { val.push(typeof val[0] === 'object' ? { "Type": "Effect" } : ""); renderAll(); };
+                node.appendChild(add);
+            } else if (typeof val === 'object' && val !== null) {
+                node.innerHTML = `<span class="node-title">${key}</span>`;
+                buildTree(val, node);
+            } else {
+                createInput(val, (nv) => { obj[key] = nv; }, node, key);
+            }
+            parentElement.appendChild(node);
+        }
+    }
+
+    function createInput(initialValue, onUpdate, parent, labelText) {
+        const row = document.createElement('div');
+        row.className = 'field-row';
+        const wrap = document.createElement('div');
+        wrap.className = 'input-wrap';
+        wrap.innerHTML = `<label style="font-size:10px; color:#888;">${labelText}</label>`;
+        const input = document.createElement('input');
+        input.value = initialValue;
+
+        input.onchange = (e) => {
+            let v = e.target.value;
+            if (v === "true") v = true; else if (v === "false") v = false;
+            else if (!isNaN(v) && v.trim() !== "") v = parseFloat(v);
+            onUpdate(v);
+            if (["SpriteFile", "GraphicName", "SpriteName", "Texture", "Sprite"].includes(labelText)) renderAll();
+        };
+
+        wrap.appendChild(input);
+        row.appendChild(wrap);
+
+        // Render Patch logic
+        if (["SpriteFile", "GraphicName", "SpriteName", "Texture", "Sprite"].includes(labelText)) {
+            const preview = document.createElement('div');
+            preview.className = 'sprite-preview';
+            const canv = document.createElement('canvas');
+            canv.width = 85; canv.height = 85;
+            preview.appendChild(canv);
+            row.appendChild(preview);
+            updatePreview(canv, initialValue);
+        }
+        parent.appendChild(row);
+    }
+
+    function updatePreview(canv, name) {
+        const spr = getBestSprite(name);
+        if (!spr || !spriteSheet.complete) return;
+        const ctx = canv.getContext('2d');
+        const ratio = Math.min(85/spr.aw, 85/spr.ah) * 0.95;
+        ctx.clearRect(0,0,85,85);
+        ctx.drawImage(spriteSheet, spr.x, spr.y, spr.w, spr.h, (85 - spr.aw*ratio)/2, (85 - spr.ah*ratio)/2, spr.aw*ratio, spr.ah*ratio);
+    }
+
+    function removeAt(key, index) {
+        const f = (t) => {
+            if (t[key] && Array.isArray(t[key])) { t[key].splice(index, 1); return true; }
+            for (let k in t) if (typeof t[k] === 'object' && t[k] !== null) if (f(t[k])) return true;
+        };
+        f(weaponData); renderAll();
+    }
+
+    function exportJSON() {
+        const data = JSON.stringify(weaponData, null, 4);
+        const blob = new Blob([data], {type: "application/json"});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = "BTD5_Fixed.json";
+        a.click();
+        pushLog("Exported Successfully. JSON Validated.", "log-ok");
+    }
+
+    function pushLog(m, c) { document.getElementById('log').innerHTML += `<div class="${c}">${m}</div>`; }
 </script>
 </body>
 </html>
