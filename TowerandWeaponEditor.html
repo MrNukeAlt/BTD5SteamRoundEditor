@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>BTD5 Weapon Master - Professional Suite</title>
+    <title>BTD5 Weapon Master - Advanced Pro Suite</title>
     <style>
         :root { --bg: #050505; --card: #121212; --accent: #00d4ff; --text: #e0e0e0; --success: #00ff88; --error: #ff4d4d; --border: #222; }
         body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
@@ -30,7 +30,7 @@
         input { background: #000; border: 1px solid #333; color: var(--success); padding: 10px; border-radius: 4px; width: 100%; box-sizing: border-box; font-family: 'Consolas', monospace; outline: none; }
         
         #bezier-container { 
-            position: fixed; top: 100px; right: 20px; width: 340px; height: 420px; 
+            position: fixed; top: 100px; right: 20px; width: 340px; height: 460px; 
             background: #111; border: 2px solid var(--accent); border-radius: 12px; 
             display: none; flex-direction: column; z-index: 1000; box-shadow: 0 10px 40px rgba(0,0,0,0.9);
         }
@@ -53,30 +53,33 @@
 </div>
 
 <div class="toolbar">
-    <span style="font-size: 10px; color: #444; font-weight: bold; margin-right: 10px;">SESSION CONTROL:</span>
-    <button class="btn btn-save-state" onclick="saveSession()">DOWNLOAD PROGRESS (.SAV)</button>
+    <span style="font-size: 10px; color: #444; font-weight: bold; margin-right: 10px;">SESSION:</span>
+    <button class="btn btn-save-state" onclick="saveSession()">SAVE (.SAV)</button>
     <input type="file" id="stateIn" style="display:none" accept=".sav">
-    <button class="btn btn-load-state" onclick="document.getElementById('stateIn').click()">RELOAD PROGRESS</button>
+    <button class="btn btn-load-state" onclick="document.getElementById('stateIn').click()">LOAD (.SAV)</button>
 </div>
 
 <div id="editor-pane"></div>
 
 <div id="bezier-container">
     <div class="bezier-header">
-        <span>LIVE BEZIER EDITOR</span>
+        <span>BEZIER ENGINE v2.0</span>
         <span style="cursor:pointer" onclick="closeBezier()">✕</span>
     </div>
     <canvas id="bezier-canvas" width="320" height="320"></canvas>
-    <div style="padding: 10px; font-size: 9px; color: #666; text-align: center;">DRAG NODES TO UPDATE MOTION CURVE</div>
+    <div id="bezier-help" style="padding: 10px; font-size: 9px; color: var(--accent); text-align: center; line-height: 1.4; border-top: 1px solid #222;">
+        DRAG NODES TO EDIT | SCROLL TO ZOOM<br><b>SHIFT + CLICK DRAG TO PAN VIEW</b>
+    </div>
 </div>
 
-<div id="log">> System Standby... Import/Export Session System Online.</div>
+<div id="log">> System Standby... Advanced Motion Suite Online.</div>
 
 <script>
     let weaponData = null;
     let activeCurveRef = null; 
-    const OFFSET = 160; 
-    const SCALE = 1.2;
+    let offsetX = 160; 
+    let offsetY = 160;
+    let currentScale = 1.2;
 
     const spriteSheet = new Image();
     spriteSheet.crossOrigin = "anonymous";
@@ -170,12 +173,15 @@
 
     // --- BEZIER ENGINE ---
     let draggingNode = null; 
+    let panning = false;
+    let lastMouse = { x: 0, y: 0 };
     const bCanvas = document.getElementById('bezier-canvas');
     const bCtx = bCanvas.getContext('2d');
 
     function openBezier(curves) {
         activeCurveRef = curves;
         document.getElementById('bezier-container').style.display = 'flex';
+        document.getElementById('log').innerHTML = "<span style='color:var(--accent)'>> Bezier Editor Active: Use SHIFT+DRAG to Pan, Scroll to Zoom, Drag Circles to Move.</span>";
         drawBezier();
     }
 
@@ -184,42 +190,78 @@
         activeCurveRef = null;
     }
 
+    bCanvas.addEventListener('wheel', e => {
+        if (!activeCurveRef) return;
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? 0.9 : 1.1;
+        currentScale *= delta;
+        currentScale = Math.min(Math.max(currentScale, 0.05), 20);
+        drawBezier();
+    });
+
     bCanvas.addEventListener('mousedown', e => {
         if (!activeCurveRef) return;
         const rect = bCanvas.getBoundingClientRect();
         const mx = e.clientX - rect.left;
         const my = e.clientY - rect.top;
+        
+        if (e.shiftKey) {
+            panning = true;
+            lastMouse = { x: e.clientX, y: e.clientY };
+            return;
+        }
+
         activeCurveRef.forEach((seg, sIdx) => {
             seg.forEach((pt, pIdx) => {
-                if (Math.hypot(pt[0] * SCALE + OFFSET - mx, pt[1] * SCALE + OFFSET - my) < 12) draggingNode = { sIdx, pIdx };
+                if (Math.hypot(pt[0] * currentScale + offsetX - mx, pt[1] * currentScale + offsetY - my) < 12) draggingNode = { sIdx, pIdx };
             });
         });
     });
 
     window.addEventListener('mousemove', e => {
-        if (!draggingNode || !activeCurveRef) return;
+        if (!activeCurveRef) return;
+        
+        if (panning) {
+            offsetX += (e.clientX - lastMouse.x);
+            offsetY += (e.clientY - lastMouse.y);
+            lastMouse = { x: e.clientX, y: e.clientY };
+            drawBezier();
+            return;
+        }
+
+        if (!draggingNode) return;
         const rect = bCanvas.getBoundingClientRect();
-        activeCurveRef[draggingNode.sIdx][draggingNode.pIdx][0] = parseFloat(((e.clientX - rect.left - OFFSET) / SCALE).toFixed(2));
-        activeCurveRef[draggingNode.sIdx][draggingNode.pIdx][1] = parseFloat(((e.clientY - rect.top - OFFSET) / SCALE).toFixed(2));
+        activeCurveRef[draggingNode.sIdx][draggingNode.pIdx][0] = parseFloat(((e.clientX - rect.left - offsetX) / currentScale).toFixed(2));
+        activeCurveRef[draggingNode.sIdx][draggingNode.pIdx][1] = parseFloat(((e.clientY - rect.top - offsetY) / currentScale).toFixed(2));
         drawBezier();
         syncInputs();
     });
 
-    window.addEventListener('mouseup', () => draggingNode = null);
+    window.addEventListener('mouseup', () => { draggingNode = null; panning = false; });
 
     function drawBezier() {
         if (!activeCurveRef) return;
         bCtx.clearRect(0,0,320,320);
-        bCtx.strokeStyle = "#333"; bCtx.beginPath();
-        bCtx.moveTo(0, OFFSET); bCtx.lineTo(320, OFFSET); bCtx.moveTo(OFFSET, 0); bCtx.lineTo(OFFSET, 320); bCtx.stroke();
+        
+        // Grid lines
+        bCtx.strokeStyle = "#222"; 
+        bCtx.lineWidth = 1;
+        bCtx.beginPath();
+        bCtx.moveTo(0, offsetY); bCtx.lineTo(320, offsetY);
+        bCtx.moveTo(offsetX, 0); bCtx.lineTo(offsetX, 320);
+        bCtx.stroke();
+
         activeCurveRef.forEach((seg, i) => {
-            const p = seg.map(pt => [pt[0] * SCALE + OFFSET, pt[1] * SCALE + OFFSET]);
+            const p = seg.map(pt => [pt[0] * currentScale + offsetX, pt[1] * currentScale + offsetY]);
             bCtx.strokeStyle = i % 2 === 0 ? "var(--accent)" : "var(--success)";
             bCtx.lineWidth = 2; bCtx.beginPath();
             bCtx.moveTo(p[0][0], p[0][1]);
             bCtx.bezierCurveTo(p[1][0], p[1][1], p[2][0], p[2][1], p[3][0], p[3][1]);
             bCtx.stroke();
-            p.forEach(pt => { bCtx.fillStyle = "white"; bCtx.beginPath(); bCtx.arc(pt[0], pt[1], 5, 0, Math.PI*2); bCtx.fill(); });
+            
+            p.forEach(pt => { 
+                bCtx.fillStyle = "white"; bCtx.beginPath(); bCtx.arc(pt[0], pt[1], 4, 0, Math.PI*2); bCtx.fill(); 
+            });
         });
     }
 
@@ -233,7 +275,7 @@
             const isBezier = (key === "Curves" && Array.isArray(val) && val.length > 0 && Array.isArray(val[0]));
 
             if (Array.isArray(val)) {
-                node.innerHTML = `<div class="node-header"><span class="node-title">${key}</span>${isBezier ? `<button class="btn btn-bezier" onclick="openBezier(getObjectByPath('${currentPath}'))">LIVE CURVE EDITOR</button>` : ''}</div>`;
+                node.innerHTML = `<div class="node-header"><span class="node-title">${key}</span>${isBezier ? `<button class="btn btn-bezier" onclick="openBezier(getObjectByPath('${currentPath}'))">EDIT MOTION</button>` : ''}</div>`;
                 const list = document.createElement('div');
                 list.className = 'task-list';
                 val.forEach((item, i) => {
@@ -308,7 +350,7 @@
         ctx.drawImage(spriteSheet, spr.x, spr.y, spr.aw, spr.ah, (115 - spr.aw*ratio)/2, (115 - spr.ah*ratio)/2, spr.aw*ratio, spr.ah*ratio);
     }
 
-    // --- IMPORT / EXPORT SYSTEM ---
+    // --- SESSION CONTROL ---
     document.getElementById('fileIn').addEventListener('change', (e) => {
         const reader = new FileReader();
         reader.onload = (ev) => {
@@ -336,7 +378,6 @@
         a.href = URL.createObjectURL(blob);
         a.download = "WeaponEditor_Progress.sav";
         a.click();
-        document.getElementById('log').innerText = `> Progress Saved to .sav file.`;
     }
 
     function render() {
