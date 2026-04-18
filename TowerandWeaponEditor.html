@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>BTD5 Weapon Master - Green Assassin HD Fix</title>
+    <title>BTD5 Weapon Master - Advanced Pro Suite</title>
     <style>
-        :root { --bg: #050505; --card: #121212; --accent: #00d4ff; --text: #e0e0e0; --success: #00ff88; --border: #222; }
+        :root { --bg: #050505; --card: #121212; --accent: #00d4ff; --text: #e0e0e0; --success: #00ff88; --error: #ff4d4d; --border: #222; }
         body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
         
         .header { background: #000; padding: 10px 20px; border-bottom: 1px solid var(--border); display: flex; gap: 15px; align-items: center; justify-content: space-between; }
@@ -19,21 +19,26 @@
         .task-list { margin-left: 20px; border-left: 2px solid #333; padding-left: 15px; display: flex; flex-direction: column; gap: 12px; }
         
         .btn { padding: 8px 14px; font-size: 11px; font-weight: bold; border-radius: 4px; cursor: pointer; border: none; transition: 0.2s; }
-        .btn-bezier { background: #facc15; color: black; margin-left: 10px; }
+        .btn-bezier { background: #facc15; color: black; margin-left: 10px; box-shadow: 0 0 10px rgba(250, 204, 21, 0.4); }
+        .btn-del { background: #2a1010; color: var(--error); border: 1px solid var(--error); padding: 5px 12px; font-size: 10px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .btn-save-state { background: #6366f1; color: white; }
+        .btn-load-state { background: #4b5563; color: white; }
 
         .field-row { display: flex; align-items: flex-start; gap: 15px; margin-bottom: 8px; }
         .input-wrap { flex: 1; min-width: 0; }
         label { display: block; font-size: 10px; color: #888; margin-bottom: 4px; text-transform: uppercase; font-weight: bold; }
         input { background: #000; border: 1px solid #333; color: var(--success); padding: 10px; border-radius: 4px; width: 100%; box-sizing: border-box; font-family: 'Consolas', monospace; outline: none; }
         
-        /* SPRITE PREVIEW BOX FIX */
-        .sprite-preview { width: 115px; height: 115px; background: #000; border: 1px solid #444; border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; padding: 5px; box-sizing: border-box; }
-        .sprite-preview img { width: 100%; height: 100%; object-fit: contain; display: block; }
+        #bezier-container { 
+            position: fixed; top: 100px; right: 20px; width: 340px; height: 460px; 
+            background: #111; border: 2px solid var(--accent); border-radius: 12px; 
+            display: none; flex-direction: column; z-index: 1000; box-shadow: 0 10px 40px rgba(0,0,0,0.9);
+        }
+        .bezier-header { background: var(--accent); color: black; padding: 10px; font-size: 11px; font-weight: 900; display: flex; justify-content: space-between; border-radius: 10px 10px 0 0; }
+        #bezier-canvas { background: #000; cursor: crosshair; flex: 1; margin: 10px; border: 1px solid #333; border-radius: 4px; }
         
-        #bezier-container { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 500px; height: 600px; background: #111; border: 2px solid var(--accent); border-radius: 12px; display: none; flex-direction: column; z-index: 1000; box-shadow: 0 0 50px rgba(0,0,0,0.8); }
-        .bezier-header { background: var(--accent); color: black; padding: 12px; font-size: 11px; font-weight: 900; display: flex; justify-content: space-between; border-radius: 10px 10px 0 0; }
-        .bezier-tools { background: #1a1a1a; padding: 10px; display: flex; gap: 15px; align-items: center; border-bottom: 1px solid #333; }
-        #bezier-canvas { background: #000; cursor: crosshair; flex: 1; border-bottom: 1px solid #333; }
+        .sprite-preview { width: 115px; height: 115px; background: #000; border: 1px solid #444; border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
+        #log { height: 60px; background: #000; color: #555; font-size: 11px; padding: 10px; border-top: 1px solid var(--border); overflow-y: auto; }
     </style>
 </head>
 <body>
@@ -41,46 +46,44 @@
 <div class="header">
     <div style="font-weight: 900; color: var(--accent); letter-spacing: 2px;">BTD5 <span style="color:white">WEAPON MASTER</span></div>
     <div style="display:flex; gap:10px">
-        <input type="file" id="fileIn" style="display:none" accept=".json">
+        <input type="file" id="fileIn" style="display:none" accept=".json,.weapon">
         <button class="btn" style="background:white; color:black;" onclick="document.getElementById('fileIn').click()">LOAD .JSON</button>
-        <button class="btn" style="background:var(--success); color:black;" onclick="exportJSON()">EXPORT .JSON</button>
+        <button class="btn" style="background:var(--success); color:black;" onclick="exportJSON()">EXPORT FINAL .JSON</button>
     </div>
 </div>
 
 <div class="toolbar">
-    <button class="btn" style="background: #6366f1; color: white;" onclick="saveSession()">SAVE (.SAV)</button>
+    <span style="font-size: 10px; color: #444; font-weight: bold; margin-right: 10px;">SESSION CONTROL:</span>
+    <button class="btn btn-save-state" onclick="saveSession()">SAVE PROGRESS (.SAV)</button>
     <input type="file" id="stateIn" style="display:none" accept=".sav">
-    <button class="btn" style="background: #4b5563; color: white;" onclick="document.getElementById('stateIn').click()">LOAD (.SAV)</button>
+    <button class="btn btn-load-state" onclick="document.getElementById('stateIn').click()">LOAD PROGRESS (.SAV)</button>
 </div>
 
 <div id="editor-pane"></div>
 
 <div id="bezier-container">
-    <div class="bezier-header"><span>BEZIER PATH ENGINE</span><span style="cursor:pointer" onclick="closeBezier()">✕</span></div>
-    <div class="bezier-tools">
-        <label style="color:white">ZOOM</label>
-        <input type="range" id="bezier-zoom" min="0.5" max="5" step="0.1" value="1" oninput="drawBezier()">
-        <span style="font-size: 9px; color: #888;">SHIFT + CLICK TO PAN</span>
+    <div class="bezier-header">
+        <span>BEZIER ENGINE v2.1</span>
+        <span style="cursor:pointer" onclick="closeBezier()">✕</span>
     </div>
-    <canvas id="bezier-canvas" width="500" height="400"></canvas>
-    <div style="padding:10px; font-size:10px; color:#555; text-align:center;">Drag points to edit. Shift+Drag to Pan.</div>
+    <canvas id="bezier-canvas" width="320" height="320"></canvas>
+    <div id="bezier-help" style="padding: 10px; font-size: 9px; color: var(--accent); text-align: center; line-height: 1.4; border-top: 1px solid #222;">
+        DRAG NODES TO EDIT | SCROLL TO ZOOM<br><b>SHIFT + CLICK DRAG TO PAN VIEW</b>
+    </div>
 </div>
+
+<div id="log">> System Ready. Full Library Restored & Assassin Fixed.</div>
 
 <script>
     let weaponData = null;
-    let currentFileName = "";
-    let activeCurveRef = null;
-    let bZoom = 1;
-    let bOffset = { x: 250, y: 200 };
-    let draggingPoint = null;
-    let isPanning = false;
+    let activeCurveRef = null; 
+    let offsetX = 160; 
+    let offsetY = 160;
+    let currentScale = 1.2;
 
     const spriteSheet = new Image();
     spriteSheet.crossOrigin = "anonymous";
     spriteSheet.src = "https://pub-1407f82391df4ab1951418d04be76914.r2.dev/uploads/29736065-7658-4e24-b1a6-60364a2662ad.png";
-
-    // SPECIFIC OVERRIDE URL
-    const GREEN_ASSASSIN_URL = "https://pub-1407f82391df4ab1951418d04be76914.r2.dev/uploads/9234a1fa-8152-4a2d-874d-7fb97ccfc83a.png";
 
     const spriteLibrary = [
         {name:"acorn",x:929,y:157,w:37,h:48,aw:37,ah:48},
@@ -156,55 +159,109 @@
     ];
 
     function getBestSprite(name) {
-        if (!name) return null;
-        const clean = name.toLowerCase();
+        if (!name || typeof name !== 'string') return null;
+        let clean = name.toLowerCase().split('/').pop().replace(".json", "").replace(".weapon", "").replace(".png", "").replace(/_/g, "").replace(/\s/g, "");
         
-        // --- HARD OVERRIDE FOR BOMB TOWER GREEN ASSASSIN ---
-        if (currentFileName === "BombTowerGreenAssassin.json" || clean.includes("moabassassin")) {
-            return { isHD: true, url: GREEN_ASSASSIN_URL };
-        }
+        // Priority Mappings
+        if (clean.includes("greenassassin") || clean.includes("specialability")) return spriteLibrary.find(s => s.name === "bomb_tower_special_ability_projectile");
+        if (clean.includes("moabassassin")) return spriteLibrary.find(s => s.name === "bomb_tower_moab_assassin");
+        if (clean.includes("mauler")) return spriteLibrary.find(s => s.name === "bomb_tower_moab_mauler");
+        if (clean.includes("bombprojectile") || clean === "bomb") return spriteLibrary.find(s => s.name === "bomb_tower_bomb");
+        if (clean.includes("juggernaut")) return spriteLibrary.find(s => s.name === "juggernaut_ball_01");
 
-        const match = spriteLibrary.find(s => clean.includes(s.name.replace(/_/g, "")));
-        return match || null;
+        return spriteLibrary.find(s => {
+            let libName = s.name.toLowerCase().replace(/_/g, "");
+            return clean.includes(libName) || libName.includes(clean);
+        }) || null;
     }
 
-    function updatePreview(container, name) {
-        container.innerHTML = '';
-        const spr = getBestSprite(name);
-        if (!spr) return;
+    // --- BEZIER ENGINE ---
+    let draggingNode = null; 
+    let panning = false;
+    let lastMouse = { x: 0, y: 0 };
+    const bCanvas = document.getElementById('bezier-canvas');
+    const bCtx = bCanvas.getContext('2d');
 
-        if (spr.isHD) {
-            const img = new Image();
-            img.src = spr.url;
-            img.onload = () => { img.style.opacity = "1"; };
-            container.appendChild(img);
-        } else {
-            const canv = document.createElement('canvas');
-            canv.width = 115; canv.height = 115;
-            const ctx = canv.getContext('2d');
-            const ratio = Math.min(105/spr.aw, 105/spr.ah);
-            ctx.drawImage(spriteSheet, spr.x, spr.y, spr.aw, spr.ah, (115 - spr.aw*ratio)/2, (115 - spr.ah*ratio)/2, spr.aw*ratio, spr.ah*ratio);
-            container.appendChild(canv);
-        }
+    function openBezier(curves) {
+        activeCurveRef = curves;
+        document.getElementById('bezier-container').style.display = 'flex';
+        drawBezier();
     }
 
-    function buildUI(obj, parent, path = "") {
+    function closeBezier() { document.getElementById('bezier-container').style.display = 'none'; activeCurveRef = null; }
+
+    bCanvas.addEventListener('wheel', e => {
+        if (!activeCurveRef) return;
+        e.preventDefault();
+        currentScale *= (e.deltaY > 0 ? 0.9 : 1.1);
+        drawBezier();
+    });
+
+    bCanvas.addEventListener('mousedown', e => {
+        if (!activeCurveRef) return;
+        const rect = bCanvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        if (e.shiftKey) { panning = true; lastMouse = { x: e.clientX, y: e.clientY }; return; }
+        activeCurveRef.forEach((seg, sIdx) => {
+            seg.forEach((pt, pIdx) => {
+                if (Math.hypot(pt[0] * currentScale + offsetX - mx, pt[1] * currentScale + offsetY - my) < 12) draggingNode = { sIdx, pIdx };
+            });
+        });
+    });
+
+    window.addEventListener('mousemove', e => {
+        if (!activeCurveRef) return;
+        if (panning) {
+            offsetX += (e.clientX - lastMouse.x); offsetY += (e.clientY - lastMouse.y);
+            lastMouse = { x: e.clientX, y: e.clientY }; drawBezier(); return;
+        }
+        if (!draggingNode) return;
+        const rect = bCanvas.getBoundingClientRect();
+        activeCurveRef[draggingNode.sIdx][draggingNode.pIdx][0] = parseFloat(((e.clientX - rect.left - offsetX) / currentScale).toFixed(2));
+        activeCurveRef[draggingNode.sIdx][draggingNode.pIdx][1] = parseFloat(((e.clientY - rect.top - offsetY) / currentScale).toFixed(2));
+        drawBezier(); syncInputs();
+    });
+
+    window.addEventListener('mouseup', () => { draggingNode = null; panning = false; });
+
+    function drawBezier() {
+        if (!activeCurveRef) return;
+        bCtx.clearRect(0,0,320,320);
+        bCtx.strokeStyle = "#222"; 
+        bCtx.beginPath(); bCtx.moveTo(0, offsetY); bCtx.lineTo(320, offsetY); bCtx.moveTo(offsetX, 0); bCtx.lineTo(offsetX, 320); bCtx.stroke();
+        activeCurveRef.forEach((seg, i) => {
+            const p = seg.map(pt => [pt[0] * currentScale + offsetX, pt[1] * currentScale + offsetY]);
+            bCtx.strokeStyle = i % 2 === 0 ? "var(--accent)" : "var(--success)";
+            bCtx.lineWidth = 2; bCtx.beginPath(); bCtx.moveTo(p[0][0], p[0][1]);
+            bCtx.bezierCurveTo(p[1][0], p[1][1], p[2][0], p[2][1], p[3][0], p[3][1]);
+            bCtx.stroke();
+            p.forEach(pt => { bCtx.fillStyle = "white"; bCtx.beginPath(); bCtx.arc(pt[0], pt[1], 4, 0, Math.PI*2); bCtx.fill(); });
+        });
+    }
+
+    // --- BUILDER & PREVIEW ---
+    function build(obj, parent, path = "") {
         for (let key in obj) {
-            const val = obj[key], currentPath = path ? `${path}.${key}` : key;
-            const node = document.createElement('div'); node.className = 'node';
+            const val = obj[key];
+            const currentPath = path ? `${path}.${key}` : key;
+            const node = document.createElement('div');
+            node.className = 'node';
+            const isBezier = (key === "Curves" && Array.isArray(val));
+
             if (Array.isArray(val)) {
-                node.innerHTML = `<div class="node-header"><span class="node-title">${key}</span>${key === "Curves" ? `<button class="btn btn-bezier" onclick="openBezier('${currentPath}')">EDIT PATH</button>` : ''}</div>`;
+                node.innerHTML = `<div class="node-header"><span class="node-title">${key}</span>${isBezier ? `<button class="btn btn-bezier" onclick="openBezier(getObjectByPath('${currentPath}'))">EDIT MOTION</button>` : ''}</div>`;
                 const list = document.createElement('div'); list.className = 'task-list';
-                val.forEach((v, i) => {
+                val.forEach((item, i) => {
                     const wrap = document.createElement('div'); wrap.className = 'node';
-                    if (typeof v === 'object' && v !== null) buildUI(v, wrap, `${currentPath}.${i}`);
-                    else createInput(v, (newVal) => val[i] = newVal, wrap, `Value`, `${currentPath}.${i}`);
+                    if (typeof item === 'object' && item !== null) build(item, wrap, `${currentPath}.${i}`);
+                    else createInput(item, (v) => val[i] = v, wrap, `Value`, `${currentPath}.${i}`);
                     list.appendChild(wrap);
                 });
                 node.appendChild(list);
             } else if (typeof val === 'object' && val !== null) {
                 node.innerHTML = `<div class="node-header"><span class="node-title">${key}</span></div>`;
-                buildUI(val, node, currentPath);
+                build(val, node, currentPath);
             } else {
                 createInput(val, (v) => obj[key] = v, node, key, currentPath);
             }
@@ -216,81 +273,53 @@
         const row = document.createElement('div'); row.className = 'field-row';
         const wrap = document.createElement('div'); wrap.className = 'input-wrap';
         wrap.innerHTML = `<label>${label}</label>`;
-        const input = document.createElement('input'); input.value = init;
+        const input = document.createElement('input'); input.value = init; input.setAttribute('data-path', path);
         input.onchange = (e) => { 
             let v = e.target.value; update(isNaN(v) || v === "" ? v : parseFloat(v)); 
-            if(["SpriteFile", "GraphicName", "ProjectileFile", "Texture"].includes(label)) render();
+            if(["SpriteFile", "GraphicName", "Texture", "SpriteName"].includes(label)) render();
         };
         wrap.appendChild(input); row.appendChild(wrap);
-        if(["SpriteFile", "GraphicName", "ProjectileFile", "Texture"].includes(label)) {
+        if(["SpriteFile", "GraphicName", "Texture", "SpriteName"].includes(label)) {
             const preview = document.createElement('div'); preview.className = 'sprite-preview';
-            row.appendChild(preview); updatePreview(preview, init);
+            const canv = document.createElement('canvas'); canv.width = 115; canv.height = 115;
+            preview.appendChild(canv); row.appendChild(preview);
+            updateCanvas(canv, init);
         }
         parent.appendChild(row);
     }
 
-    function openBezier(path) {
-        activeCurveRef = path.split('.').reduce((o, i) => o[i], weaponData);
-        document.getElementById('bezier-container').style.display = 'flex';
-        bOffset = { x: 250, y: 200 };
-        drawBezier();
-    }
-    function closeBezier() { document.getElementById('bezier-container').style.display = 'none'; }
-
-    function drawBezier() {
-        const canv = document.getElementById('bezier-canvas');
+    function updateCanvas(canv, name) {
+        const spr = getBestSprite(name);
+        if (!spr || !spriteSheet.complete) return;
         const ctx = canv.getContext('2d');
-        bZoom = parseFloat(document.getElementById('bezier-zoom').value);
-        ctx.clearRect(0, 0, canv.width, canv.height);
-        ctx.strokeStyle = '#222'; ctx.beginPath();
-        for(let i=0; i<canv.width; i+=50*bZoom) { ctx.moveTo(i+bOffset.x%(50*bZoom),0); ctx.lineTo(i+bOffset.x%(50*bZoom),canv.height); }
-        for(let i=0; i<canv.height; i+=50*bZoom) { ctx.moveTo(0,i+bOffset.y%(50*bZoom)); ctx.lineTo(canv.width,i+bOffset.y%(50*bZoom)); }
-        ctx.stroke();
-        if(!activeCurveRef) return;
-        ctx.strokeStyle = varProp('--accent'); ctx.lineWidth = 2; ctx.beginPath();
-        activeCurveRef.forEach((p, i) => {
-            const x = p[0] * bZoom + bOffset.x, y = p[1] * bZoom + bOffset.y;
-            if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-        });
-        ctx.stroke();
-        activeCurveRef.forEach((p, i) => {
-            const x = p[0] * bZoom + bOffset.x, y = p[1] * bZoom + bOffset.y;
-            ctx.fillStyle = (draggingPoint === i) ? '#fff' : varProp('--accent');
-            ctx.fillRect(x-4, y-4, 8, 8);
-        });
+        const ratio = Math.min(115/spr.aw, 115/spr.ah) * 0.9;
+        ctx.clearRect(0,0,115,115);
+        ctx.drawImage(spriteSheet, spr.x, spr.y, spr.aw, spr.ah, (115 - spr.aw*ratio)/2, (115 - spr.ah*ratio)/2, spr.aw*ratio, spr.ah*ratio);
     }
 
-    const bCanv = document.getElementById('bezier-canvas');
-    bCanv.onmousedown = (e) => {
-        const rect = bCanv.getBoundingClientRect();
-        const mx = e.clientX - rect.left, my = e.clientY - rect.top;
-        if(e.shiftKey) { isPanning = true; return; }
-        activeCurveRef.forEach((p, i) => {
-            if(Math.hypot(mx-(p[0]*bZoom+bOffset.x), my-(p[1]*bZoom+bOffset.y)) < 15) draggingPoint = i;
-        });
-    };
-    window.onmousemove = (e) => {
-        if(isPanning) { bOffset.x += e.movementX; bOffset.y += e.movementY; drawBezier(); return; }
-        if(draggingPoint === null) return;
-        const rect = bCanv.getBoundingClientRect();
-        activeCurveRef[draggingPoint][0] = (e.clientX - rect.left - bOffset.x) / bZoom;
-        activeCurveRef[draggingPoint][1] = (e.clientY - rect.top - bOffset.y) / bZoom;
-        drawBezier();
-    };
-    window.onmouseup = () => { draggingPoint = null; isPanning = false; };
+    function getObjectByPath(path) { return path.split('.').reduce((o, i) => o[i], weaponData); }
+    function syncInputs() { document.querySelectorAll('input[data-path]').forEach(i => i.value = getObjectByPath(i.getAttribute('data-path'))); }
 
-    function varProp(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
-    function render() { const p = document.getElementById('editor-pane'); p.innerHTML = ''; if(weaponData) buildUI(weaponData, p); }
-    function exportJSON() { const blob = new Blob([JSON.stringify(weaponData, null, "\t")], {type: "application/json"}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = currentFileName || "Weapon.json"; a.click(); }
-    function saveSession() { const blob = new Blob([JSON.stringify({data: weaponData, name: currentFileName})], {type: "application/json"}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = "Session.sav"; a.click(); }
-
+    // --- IO ---
     document.getElementById('fileIn').onchange = (e) => {
-        const file = e.target.files[0]; currentFileName = file.name;
-        const reader = new FileReader(); reader.onload = (ev) => { weaponData = JSON.parse(ev.target.result); render(); }; reader.readAsText(file);
+        const reader = new FileReader();
+        reader.onload = (ev) => { weaponData = JSON.parse(ev.target.result); render(); };
+        reader.readAsText(e.target.files[0]);
     };
     document.getElementById('stateIn').onchange = (e) => {
-        const reader = new FileReader(); reader.onload = (ev) => { const session = JSON.parse(ev.target.result); weaponData = session.data; currentFileName = session.name; render(); }; reader.readAsText(e.target.files[0]);
+        const reader = new FileReader();
+        reader.onload = (ev) => { weaponData = JSON.parse(ev.target.result); render(); };
+        reader.readAsText(e.target.files[0]);
     };
+    function saveSession() {
+        const blob = new Blob([JSON.stringify(weaponData)], {type: "application/octet-stream"});
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = "Session.sav"; a.click();
+    }
+    function render() { const p = document.getElementById('editor-pane'); p.innerHTML = ''; if(weaponData) build(weaponData, p); }
+    function exportJSON() {
+        const blob = new Blob([JSON.stringify(weaponData, null, "\t")], {type: "application/json"});
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = "Weapon.json"; a.click();
+    }
 </script>
 </body>
 </html>
