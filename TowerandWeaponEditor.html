@@ -53,17 +53,17 @@
 </div>
 
 <div class="toolbar">
-    <span style="font-size: 10px; color: #444; font-weight: bold; margin-right: 10px;">SESSION:</span>
-    <button class="btn btn-save-state" onclick="saveSession()">SAVE (.SAV)</button>
+    <span style="font-size: 10px; color: #444; font-weight: bold; margin-right: 10px;">SESSION CONTROL:</span>
+    <button class="btn btn-save-state" onclick="saveSession()">SAVE PROGRESS (.SAV)</button>
     <input type="file" id="stateIn" style="display:none" accept=".sav">
-    <button class="btn btn-load-state" onclick="document.getElementById('stateIn').click()">LOAD (.SAV)</button>
+    <button class="btn btn-load-state" onclick="document.getElementById('stateIn').click()">LOAD PROGRESS (.SAV)</button>
 </div>
 
 <div id="editor-pane"></div>
 
 <div id="bezier-container">
     <div class="bezier-header">
-        <span>BEZIER ENGINE v2.0</span>
+        <span>BEZIER ENGINE v2.1</span>
         <span style="cursor:pointer" onclick="closeBezier()">✕</span>
     </div>
     <canvas id="bezier-canvas" width="320" height="320"></canvas>
@@ -72,7 +72,7 @@
     </div>
 </div>
 
-<div id="log">> System Standby... Advanced Motion Suite Online.</div>
+<div id="log">> System Ready. Asset Mapping: Bomb Projectile Restored.</div>
 
 <script>
     let weaponData = null;
@@ -161,10 +161,15 @@
     function getBestSprite(name) {
         if (!name || typeof name !== 'string') return null;
         let clean = name.toLowerCase().split('/').pop().replace(".json", "").replace(".weapon", "").replace(".png", "").replace(/_/g, "").replace(/\s/g, "");
+        
+        // Priority Mappings
         if (clean.includes("juggernaut")) return spriteLibrary.find(s => s.name === "juggernaut_ball_01");
         if (clean.includes("apprenticeprojectile")) return spriteLibrary.find(s => s.name === "intense_magic");
-        const manualMap = { "bombtowergreenassassin": "bomb_tower_special_ability_projectile", "bombtowermauler": "bomb_tower_moab_mauler", "whirlwind": "whirlwind", "bomb": "bomb_tower_bomb" };
-        if (manualMap[clean]) return spriteLibrary.find(s => s.name === manualMap[clean]);
+        if (clean.includes("mauler")) return spriteLibrary.find(s => s.name === "bomb_tower_moab_mauler");
+        
+        // Fix for BombProjectile.json
+        if (clean === "bombprojectile" || clean === "bomb") return spriteLibrary.find(s => s.name === "bomb_tower_bomb");
+
         return spriteLibrary.find(s => {
             let libName = s.name.toLowerCase().replace(/_/g, "");
             return clean.includes(libName) || libName.includes(clean);
@@ -220,7 +225,6 @@
 
     window.addEventListener('mousemove', e => {
         if (!activeCurveRef) return;
-        
         if (panning) {
             offsetX += (e.clientX - lastMouse.x);
             offsetY += (e.clientY - lastMouse.y);
@@ -228,7 +232,6 @@
             drawBezier();
             return;
         }
-
         if (!draggingNode) return;
         const rect = bCanvas.getBoundingClientRect();
         activeCurveRef[draggingNode.sIdx][draggingNode.pIdx][0] = parseFloat(((e.clientX - rect.left - offsetX) / currentScale).toFixed(2));
@@ -242,8 +245,6 @@
     function drawBezier() {
         if (!activeCurveRef) return;
         bCtx.clearRect(0,0,320,320);
-        
-        // Grid lines
         bCtx.strokeStyle = "#222"; 
         bCtx.lineWidth = 1;
         bCtx.beginPath();
@@ -258,7 +259,6 @@
             bCtx.moveTo(p[0][0], p[0][1]);
             bCtx.bezierCurveTo(p[1][0], p[1][1], p[2][0], p[2][1], p[3][0], p[3][1]);
             bCtx.stroke();
-            
             p.forEach(pt => { 
                 bCtx.fillStyle = "white"; bCtx.beginPath(); bCtx.arc(pt[0], pt[1], 4, 0, Math.PI*2); bCtx.fill(); 
             });
@@ -347,6 +347,7 @@
         const ctx = canv.getContext('2d');
         const ratio = Math.min(115/spr.aw, 115/spr.ah) * 0.9;
         ctx.clearRect(0,0,115,115);
+        // Corrected mapping: Use source w/h and draw with aw/ah
         ctx.drawImage(spriteSheet, spr.x, spr.y, spr.aw, spr.ah, (115 - spr.aw*ratio)/2, (115 - spr.ah*ratio)/2, spr.aw*ratio, spr.ah*ratio);
     }
 
