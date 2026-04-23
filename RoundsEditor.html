@@ -30,7 +30,7 @@
         .camo-overlay { 
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             width: 85%; height: 85%; 
-            background-image: url('https://pub-1407f82391df4ab1951418d04be76914.r2.dev/uploads/ac4a8c4e-68c4-4608-8cd1-e77ad368a273.png');
+            background-image: url('https://mrnukealt.github.io/BTD5SteamRoundEditor/Camo.png');
             background-position: center; background-repeat: no-repeat; background-size: contain; 
             opacity: 0; z-index: 5; pointer-events: none; transition: opacity 0.2s ease;
             filter: brightness(1.1) drop-shadow(0px 0px 1px rgba(0,0,0,0.5));
@@ -80,7 +80,7 @@ const baseDir = "https://halfhydra.github.io/BTD5ChallengeEditor/Images/Bloon/";
 const names = ["Red", "Blue", "Green", "Yellow", "Pink", "Black", "White", "Lead", "Zebra", "Rainbow", "Ceramic", "MOAB", "BFB", "ZOMG"];
 const assetMap = { 0: "Red.png", 1: "Blue.png", 2: "Green.png", 3: "Yellow.png", 4: "Pink.png", 5: "Black.png", 6: "White.png", 7: "Lead.png", 8: "Zebra.png", 9: "Rainbow.png", 10: "Ceramic.png", 11: "MOAB.png", 12: "BFB.png", 13: "ZOMG.png" };
 const colorMap = { 0: "#ff0000", 1: "#0000ff", 2: "#00ff00", 3: "#ffff00", 4: "#ff69b4", 5: "#333333", 6: "#ffffff", 7: "#777777", 8: "#cccccc", 9: "#ffffff", 10: "#8b4513", 11: "#00bfff", 12: "#ff0000", 13: "#006400" };
-const customRegenAssets = { 5: "https://pub-1407f82391df4ab1951418d04be76914.r2.dev/uploads/dd96fefc-3545-46af-bbb7-39c9d611b0dd.png", 6: "https://pub-1407f82391df4ab1951418d04be76914.r2.dev/uploads/4383bed2-ea2e-4a06-a22b-85e656cbb67b.png", 7: "https://pub-1407f82391df4ab1951418d04be76914.r2.dev/uploads/e2199bcf-d46c-41f1-aa9b-5403917a1f63.png", 8: "https://pub-1407f82391df4ab1951418d04be76914.r2.dev/uploads/4a90365c-c652-43d3-b63b-0aa82a09ec0c.png", 9: "https://pub-1407f82391df4ab1951418d04be76914.r2.dev/uploads/ed8951ee-a09e-432c-a130-bc806daec1b9.png", 10: "https://pub-1407f82391df4ab1951418d04be76914.r2.dev/uploads/b72002ee-27ce-4f6a-98f8-ad78edcf7b96.png" };
+const customRegenAssets = { 5: "https://mrnukealt.github.io/BTD5SteamRoundEditor/black_regen.png", 6: "https://mrnukealt.github.io/BTD5SteamRoundEditor/white_regen.png", 7: "https://mrnukealt.github.io/BTD5SteamRoundEditor/lead_regen.png", 8: "https://mrnukealt.github.io/BTD5SteamRoundEditor/zebra_regen.png", 9: "https://mrnukealt.github.io/BTD5SteamRoundEditor/rainbow_regen.png", 10: "https://mrnukealt.github.io/BTD5SteamRoundEditor/ceramic_regen_01.png" };
 
 let roundsData = [];
 
@@ -180,7 +180,7 @@ function updateRegenIcon(rIdx, gIdx, type) {
         icon.style.backgroundColor = 'transparent';
         icon.style.backgroundImage = `url('${customRegenAssets[type]}')`;
     } else {
-        const heartUrl = 'https://pub-1407f82391df4ab1951418d04be76914.r2.dev/uploads/341c16cb-83cd-42f8-ab52-a177d54ea55b.png';
+        const heartUrl = 'https://mrnukealt.github.io/BTD5SteamRoundEditor/stock_regen_bloon.png';
         icon.style.backgroundImage = 'none';
         icon.style.backgroundColor = colorMap[type];
         icon.style.webkitMask = `url('${heartUrl}') no-repeat center`;
